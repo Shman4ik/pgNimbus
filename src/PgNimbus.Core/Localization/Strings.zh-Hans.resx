@@ -212,7 +212,7 @@
     <comment>Settings, Appearance tab: the setting's name.</comment>
   </data>
   <data name="Settings_ThemeHint" xml:space="preserve">
-    <value>“系统”跟随操作系统的浅色/深色设置</value>
+    <value>“系统”跟随操作系统的浅色/深色设置。</value>
     <comment>Settings, Appearance tab: hint under Theme.</comment>
   </data>
   <data name="Settings_ThemeSystem" xml:space="preserve">
@@ -260,11 +260,11 @@
     <comment>Settings, Appearance tab: hint under Editor font size. {gesture} is the keyboard shortcut that resets the zoom, such as Ctrl+0 or ⌘0; it is built by the app and not translated.</comment>
   </data>
   <data name="Settings_ShowSizes" xml:space="preserve">
-    <value>在架构树中显示关系大小</value>
+    <value>在模式树中显示表大小</value>
     <comment>Settings, Appearance tab: the setting's name (a switch). A relation is a table or materialized view.</comment>
   </data>
   <data name="Settings_ShowSizesHint" xml:space="preserve">
-    <value>在每个表和物化视图的名称旁以淡色提示显示其磁盘占用（堆 + 索引 + TOAST）</value>
+    <value>在每个表和物化视图的名称旁以淡色提示显示其磁盘占用（堆 + 索引 + TOAST）。</value>
     <comment>Settings, Appearance tab: hint under Show relation sizes. Heap and TOAST are PostgreSQL storage terms.</comment>
   </data>
   <data name="Settings_CompletionSection" xml:space="preserve">
@@ -276,7 +276,7 @@
     <comment>Settings, Editor tab, Completion: the setting's name (a switch).</comment>
   </data>
   <data name="Settings_AutoAliasHint" xml:space="preserve">
-    <value>接受 FROM/JOIN 之后的表时，同时插入简短别名（orders → orders o）</value>
+    <value>接受 FROM/JOIN 之后的表时，同时插入简短别名（orders → orders o）。</value>
     <comment>Settings, Editor tab, Completion: hint under the setting. FROM and JOIN are SQL keywords; the example is SQL.</comment>
   </data>
   <data name="Settings_KeywordCase" xml:space="preserve">
@@ -300,11 +300,11 @@
     <comment>Settings, Editor tab: a choice in the Keyword case list; keywords are written in small letters.</comment>
   </data>
   <data name="Settings_AlwaysQualify" xml:space="preserve">
-    <value>始终写出表的架构</value>
+    <value>始终写出表的模式名</value>
     <comment>Settings, Editor tab, Completion: the setting's name (a switch).</comment>
   </data>
   <data name="Settings_AlwaysQualifyHint" xml:space="preserve">
-    <value>关闭时，search_path 能找到的表直接写表名（customers），否则带上架构（saas.users）。开启时，所有表都带架构。</value>
+    <value>关闭时，search_path 能找到的表直接写表名（customers），否则带上模式名（saas.users）。开启时，所有表都带模式名。</value>
     <comment>Settings, Editor tab, Completion: hint under the setting. search_path is a PostgreSQL setting; customers and saas.users are examples and stay as they are.</comment>
   </data>
   <data name="Settings_EnterAccepts" xml:space="preserve">
@@ -320,7 +320,7 @@
     <comment>Settings, Data tab: the setting's name (a switch).</comment>
   </data>
   <data name="Settings_SafeModeHint" xml:space="preserve">
-    <value>网格中的编辑、删除和添加行的插入会先在本地暂存并高亮；审阅生成的 SQL 后，将全部更改作为一个事务提交，或者放弃</value>
+    <value>网格中的编辑、删除和添加行的插入会先在本地暂存并高亮；审阅生成的 SQL 后，将全部更改作为一个事务提交，或者放弃。</value>
     <comment>Settings, Data tab: hint under Safe mode.</comment>
   </data>
   <data name="Settings_FilterBar" xml:space="preserve">
@@ -460,7 +460,7 @@
     <comment>Connection dialog: tooltip of the lock icon on a saved connection that opens read-only, and the label of the Read-only switch.</comment>
   </data>
   <data name="Connection_NoSavedConnections" xml:space="preserve">
-    <value>还没有已保存的连接 — 填写表单后会随输入自动保存在这里</value>
+    <value>还没有已保存的连接，填写表单后会随输入自动保存在这里。</value>
     <comment>Connection dialog: hint shown over the empty list of saved connections.</comment>
   </data>
   <data name="Connection_DeleteConfirm" xml:space="preserve">
@@ -472,7 +472,7 @@
     <comment>Connection dialog: placeholder of the box that takes a pasted connection string. Keep the format examples as they are.</comment>
   </data>
   <data name="Connection_ImportTooltip" xml:space="preserve">
-    <value>粘贴 postgres:// URI、JDBC URL、Npgsql Key=Value 字符串、libpq 关键字字符串或 psql 命令行，各字段会自动填入</value>
+    <value>粘贴 postgres:// URI、JDBC URL、Npgsql Key=Value 字符串、libpq 关键字字符串或 psql 命令行，各字段会自动填入。</value>
     <comment>Connection dialog: tooltip of the paste box.</comment>
   </data>
   <data name="Connection_CopyTooltip" xml:space="preserve">
@@ -496,7 +496,7 @@
     <comment>Connection dialog: label of the connection's name field.</comment>
   </data>
   <data name="Connection_AccentColorTooltip" xml:space="preserve">
-    <value>强调色 — 为此连接的窗口着色，方便一眼区分生产和开发环境</value>
+    <value>强调色：为此连接的窗口着色，方便一眼区分生产和开发环境。</value>
     <comment>Connection dialog: tooltip of the colour swatch button beside the name.</comment>
   </data>
   <data name="Connection_NoAccentColor" xml:space="preserve">
@@ -640,7 +640,7 @@
     <comment>Connection dialog: button that tries the connection without opening it.</comment>
   </data>
   <data name="Connection_TestTooltip" xml:space="preserve">
-    <value>验证连接（如已启用，包括 SSH 隧道）但不打开它</value>
+    <value>验证连接（如已启用，包括 SSH 隧道）但不打开它。</value>
     <comment>Connection dialog: tooltip of the Test button.</comment>
   </data>
   <data name="Connection_AboutTitle" xml:space="preserve">
@@ -700,7 +700,7 @@
     <comment>Connection dialog: the name given to a duplicated connection. {name} is the original's name, such as prod-db.</comment>
   </data>
   <data name="Connection_TestSucceeded" xml:space="preserve">
-    <value>连接成功 — PostgreSQL {version}</value>
+    <value>连接成功：PostgreSQL {version}</value>
     <comment>Connection dialog: status line after Test worked. {version} is the server's version, such as 17.2.</comment>
   </data>
   <data name="Connection_TestFailed" xml:space="preserve">
@@ -1020,7 +1020,7 @@
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Explain". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_Explain_Cheat" xml:space="preserve">
-    <value>解释 — 预估执行计划</value>
+    <value>解释：预估执行计划</value>
     <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
   </data>
   <data name="Command_ExplainAnalyze" xml:space="preserve">
@@ -1028,7 +1028,7 @@
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Explain Analyze". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_ExplainAnalyze_Cheat" xml:space="preserve">
-    <value>解释并分析 — 会运行查询</value>
+    <value>解释并分析：会运行查询</value>
     <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
   </data>
   <data name="Command_ImportPlan" xml:space="preserve">
@@ -1136,7 +1136,7 @@
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Save". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_Save_Cheat" xml:space="preserve">
-    <value>保存 — 到标签页的文件或“已保存的查询”</value>
+    <value>保存：到标签页的文件或“已保存的查询”</value>
     <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
   </data>
   <data name="Command_SaveAs" xml:space="preserve">
@@ -1144,7 +1144,7 @@
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Save as…". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_SaveAs_Cheat" xml:space="preserve">
-    <value>另存为 — 新文件或新的已保存查询</value>
+    <value>另存为：新文件或新的已保存查询</value>
     <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
   </data>
   <data name="Command_SaveQuery" xml:space="preserve">
@@ -1296,7 +1296,7 @@
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Command palette (jump to table / query / action)". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_RefreshSchema" xml:space="preserve">
-    <value>刷新数据库和架构</value>
+    <value>刷新数据库和模式</value>
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Refresh database &amp; schema". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_FocusSwap" xml:space="preserve">
@@ -1312,7 +1312,7 @@
     <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
   </data>
   <data name="Command_PreviewTable" xml:space="preserve">
-    <value>预览表（在架构树中）</value>
+    <value>预览表（在模式树中）</value>
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Preview a table (in the schema tree)". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_PreviewTable_Note" xml:space="preserve">
@@ -1556,7 +1556,7 @@
     <comment>Main window, command bar at the top: tooltip of the help button that opens the keyboard shortcut sheet. The shortcut is appended by the app.</comment>
   </data>
   <data name="Shell_SchemasTab" xml:space="preserve">
-    <value>架构</value>
+    <value>模式</value>
     <comment>Main window, sidebar: label of the first tab (the schema tree). Hidden when the sidebar is narrow, then only its icon shows.</comment>
   </data>
   <data name="Shell_SchemasTabTip" xml:space="preserve">
@@ -1612,7 +1612,7 @@
     <comment>Main window, toolbar: tooltip of the Begin button that starts a database transaction. The shortcut is appended by the app.</comment>
   </data>
   <data name="Shell_Begin" xml:space="preserve">
-    <value>开始</value>
+    <value>开始事务</value>
     <comment>Main window, toolbar: label of the button that starts a database transaction (SQL BEGIN).</comment>
   </data>
   <data name="Shell_CommitTip" xml:space="preserve">
@@ -1640,11 +1640,11 @@
     <comment>Main window, toolbar: label of the button that opens the EXPLAIN menu.</comment>
   </data>
   <data name="Shell_ExplainEstimated" xml:space="preserve">
-    <value>解释 — 预估计划</value>
+    <value>解释：预估执行计划</value>
     <comment>Main window, Explain menu: item that shows the planner estimate without running the query. The shortcut is shown beside it.</comment>
   </data>
   <data name="Shell_ExplainAnalyzeRuns" xml:space="preserve">
-    <value>解释并分析 — 会运行查询</value>
+    <value>解释并分析：会运行查询</value>
     <comment>Main window, Explain menu: item that runs the query and shows measured timings. The wording warns that the query really runs. The shortcut is shown beside it.</comment>
   </data>
   <data name="Shell_ExportTip" xml:space="preserve">
@@ -1952,7 +1952,7 @@
     <comment>macOS menu bar, Query menu: item that ends the open transaction and undoes its changes.</comment>
   </data>
   <data name="Shell_MenuRefreshSchema" xml:space="preserve">
-    <value>刷新架构</value>
+    <value>刷新模式</value>
     <comment>macOS menu bar, Query menu: item that reloads the schema tree from the server.</comment>
   </data>
   <data name="Shell_MenuServerActivity" xml:space="preserve">
@@ -2020,7 +2020,7 @@
     <comment>Right-click menu of a query tab: closes all tabs to the right of this one.</comment>
   </data>
   <data name="Shell_AllowWritesConfirm" xml:space="preserve">
-    <value>允许在此窗口中写入生产环境（{connection}）？在你关闭写入或关闭窗口之前，你运行的语句、网格编辑、导入和架构操作都可能更改数据。其他窗口仍保持禁止写入。</value>
+    <value>允许在此窗口中写入生产环境（{connection}）？在你关闭写入或关闭窗口之前，你运行的语句、网格编辑、导入和模式操作都可能更改数据。其他窗口仍保持禁止写入。</value>
     <comment>Confirmation dialog of the production switch in the title bar. {connection} is the connection and database, such as "prod-eu › shop". Writes are changes to data.</comment>
   </data>
   <data name="Shell_AllowWritesButton" xml:space="preserve">
@@ -2164,11 +2164,11 @@
     <comment>Status line at the bottom of the main window: auto-alias was switched off.</comment>
   </data>
   <data name="Shell_SafeModeOn" xml:space="preserve">
-    <value>安全模式：已开启 — 网格中的编辑、删除和插入都会暂存以待审阅</value>
+    <value>安全模式：已开启，网格中的编辑、删除和插入都会暂存以待审阅</value>
     <comment>Status line at the bottom of the main window: safe mode was switched on. Safe mode holds changes back for review before they reach the database.</comment>
   </data>
   <data name="Shell_SafeModeOff" xml:space="preserve">
-    <value>安全模式：已关闭 — 网格更改会立即生效</value>
+    <value>安全模式：已关闭，网格更改会立即生效</value>
     <comment>Status line at the bottom of the main window: safe mode was switched off.</comment>
   </data>
   <data name="Shell_NoPlanOnScreen" xml:space="preserve">
@@ -2308,7 +2308,7 @@
     <comment>Status line at the bottom of the main window: reloading the names for autocomplete failed. {error} is the error text.</comment>
   </data>
   <data name="Shell_TransactionStarted" xml:space="preserve">
-    <value>事务已开始 — BEGIN</value>
+    <value>事务已开始（BEGIN）</value>
     <comment>Status line at the bottom of the main window: a transaction was started. BEGIN is the SQL command and stays.</comment>
   </data>
   <data name="Shell_TransactionBeginFailed" xml:space="preserve">
@@ -2316,7 +2316,7 @@
     <comment>Status line at the bottom of the main window: starting a transaction failed. {error} is the error text.</comment>
   </data>
   <data name="Shell_TransactionCommitted" xml:space="preserve">
-    <value>事务已提交 — COMMIT</value>
+    <value>事务已提交（COMMIT）</value>
     <comment>Status line at the bottom of the main window: the transaction was committed. COMMIT is the SQL command and stays.</comment>
   </data>
   <data name="Shell_TransactionCommitFailed" xml:space="preserve">
@@ -2324,7 +2324,7 @@
     <comment>Status line at the bottom of the main window: committing the transaction failed. {error} is the error text.</comment>
   </data>
   <data name="Shell_TransactionRolledBack" xml:space="preserve">
-    <value>事务已回滚 — ROLLBACK</value>
+    <value>事务已回滚（ROLLBACK）</value>
     <comment>Status line at the bottom of the main window: the transaction was rolled back. ROLLBACK is the SQL command and stays.</comment>
   </data>
   <data name="Shell_TransactionRollbackFailed" xml:space="preserve">
@@ -2344,7 +2344,7 @@
     <comment>Name of the tab that shows a query plan imported from pasted text.</comment>
   </data>
   <data name="Shell_SelectTableFirst" xml:space="preserve">
-    <value>请先在架构树中选择一个表，或先浏览一个表。</value>
+    <value>请先在模式树中选择一个表，或先浏览一个表。</value>
     <comment>Status line at the bottom of the main window: a table command (analyze, vacuum, truncate, rename, drop) was used with no table selected.</comment>
   </data>
   <data name="Shell_MaintVerb_Analyze" xml:space="preserve">
@@ -2468,11 +2468,11 @@
     <comment>Status line at the bottom of the main window: a table was deleted. {table} is schema.name.</comment>
   </data>
   <data name="Shell_SchemaExcluded" xml:space="preserve">
-    <value>架构“{schema}”已从自动补全中排除</value>
+    <value>模式“{schema}”已从自动补全中排除</value>
     <comment>Status line at the bottom of the main window: a schema was left out of autocomplete. {schema} is the schema name.</comment>
   </data>
   <data name="Shell_SchemaIncluded" xml:space="preserve">
-    <value>架构“{schema}”已重新加入自动补全</value>
+    <value>模式“{schema}”已重新加入自动补全</value>
     <comment>Status line at the bottom of the main window: a schema was put back into autocomplete. {schema} is the schema name.</comment>
   </data>
   <data name="Shell_ReopenedTab" xml:space="preserve">
@@ -2516,7 +2516,7 @@
     <comment>Sidebar tree, right-click menu item of a schema, table or role: copies its name to the clipboard.</comment>
   </data>
   <data name="Sidebar_BackUpSchema" xml:space="preserve">
-    <value>备份架构…</value>
+    <value>备份模式…</value>
     <comment>Sidebar tree, right-click menu of a schema: opens the backup window for this schema.</comment>
   </data>
   <data name="Sidebar_ExcludeFromAutocomplete" xml:space="preserve">
@@ -2524,7 +2524,7 @@
     <comment>Sidebar tree, right-click menu of a schema: a check item; when checked the schema is left out of editor completion.</comment>
   </data>
   <data name="Sidebar_ExcludeFromAutocompleteTip" xml:space="preserve">
-    <value>不在编辑器补全中提供此架构的表、列和函数。它仍保留在树中。</value>
+    <value>不在编辑器补全中提供此模式的表、列和函数。它仍保留在树中。</value>
     <comment>Tooltip of the menu item "Exclude from Autocomplete" in a schema's right-click menu.</comment>
   </data>
   <data name="Sidebar_ExcludedFromAutocompleteTip" xml:space="preserve">
@@ -2532,11 +2532,11 @@
     <comment>Sidebar tree, tooltip of the small crossed-eye icon beside a schema that is left out of editor completion.</comment>
   </data>
   <data name="Sidebar_DropSchema" xml:space="preserve">
-    <value>删除架构…</value>
+    <value>删除模式…</value>
     <comment>Sidebar tree, right-click menu of a schema: drops the schema after a confirmation; it fails if the schema holds objects.</comment>
   </data>
   <data name="Sidebar_DropSchemaCascade" xml:space="preserve">
-    <value>删除架构（级联）…</value>
+    <value>删除模式（级联）…</value>
     <comment>Sidebar tree, right-click menu of a schema: drops the schema and everything in it after a confirmation.</comment>
   </data>
   <data name="Sidebar_BrowseRows" xml:space="preserve">
@@ -2616,7 +2616,7 @@
     <comment>Tooltip of the menu item "Show Advanced Objects".</comment>
   </data>
   <data name="Sidebar_ExpandAllSchemas" xml:space="preserve">
-    <value>展开所有架构</value>
+    <value>展开所有模式</value>
     <comment>Sidebar tree options menu: opens every schema one level deep.</comment>
   </data>
   <data name="Sidebar_CollapseAll" xml:space="preserve">
@@ -2624,7 +2624,7 @@
     <comment>Sidebar tree options menu: closes every node of the tree.</comment>
   </data>
   <data name="Sidebar_FilterPlaceholder" xml:space="preserve">
-    <value>筛选架构和表…</value>
+    <value>筛选模式和表…</value>
     <comment>Sidebar, placeholder text of the filter box above the schema tree.</comment>
   </data>
   <data name="Sidebar_ClearFilter" xml:space="preserve">
@@ -2632,7 +2632,7 @@
     <comment>Sidebar, tooltip of the small x button inside the schema filter box.</comment>
   </data>
   <data name="Sidebar_LoadingSchema" xml:space="preserve">
-    <value>正在加载架构…</value>
+    <value>正在加载模式…</value>
     <comment>Sidebar tree: centred status text while the schema list loads for the first time.</comment>
   </data>
   <data name="Sidebar_NoMatches" xml:space="preserve">
@@ -2772,11 +2772,11 @@
     <comment>Sidebar: the confirm button of the dialog that installs an extension.</comment>
   </data>
   <data name="Sidebar_DropSchemaConfirm" xml:space="preserve">
-    <value>删除架构“{schema}”？如果架构中仍有对象，操作会失败。</value>
+    <value>删除模式“{schema}”？如果模式中仍有对象，操作会失败。</value>
     <comment>Confirmation dialog for the plain Drop Schema action. {schema} is the schema name, such as sales.</comment>
   </data>
   <data name="Sidebar_DropSchemaCascadeConfirm" xml:space="preserve">
-    <value>删除架构“{schema}”及其中的所有内容？其中的表、视图及其数据都会被移除。</value>
+    <value>删除模式“{schema}”及其中的所有内容？其中的表、视图及其数据都会被移除。</value>
     <comment>Confirmation dialog for Drop Schema (Cascade). {schema} is the schema name, such as sales.</comment>
   </data>
   <data name="Sidebar_InstallExtensionConfirm" xml:space="preserve">
@@ -2972,7 +2972,7 @@
     <comment>Sidebar tree, tooltip of the icon beside a relation: what kind of relation it is: a partitioned table.</comment>
   </data>
   <data name="Sidebar_KindRelation" xml:space="preserve">
-    <value>关系</value>
+    <value>对象</value>
     <comment>Sidebar tree, tooltip of the icon beside a relation: what kind of relation it is: fallback for any other kind.</comment>
   </data>
   <data name="Sidebar_TypeNumeric" xml:space="preserve">
@@ -3048,7 +3048,7 @@
     <comment>SQL editor completion popup: the kind of a completion item, shown in its description tooltip when nothing more specific is known (and as the first word of some descriptions). A lowercase SQL concept noun.</comment>
   </data>
   <data name="Editor_KindSchema" xml:space="preserve">
-    <value>架构</value>
+    <value>模式</value>
     <comment>SQL editor completion popup: the kind of a completion item, shown in its description tooltip when nothing more specific is known (and as the first word of some descriptions). A lowercase SQL concept noun.</comment>
   </data>
   <data name="Editor_KindTable" xml:space="preserve">
@@ -3696,7 +3696,7 @@
     <comment>Add-row dialog status line. {message} is the error text.</comment>
   </data>
   <data name="Editor_AddRowStaged" xml:space="preserve">
-    <value>行已暂存 — 请在状态栏中提交或放弃。</value>
+    <value>行已暂存，请在状态栏中提交或放弃。</value>
     <comment>Add-row dialog status line after the row was staged.</comment>
   </data>
   <data name="Editor_AddRowInserted" xml:space="preserve">
@@ -3720,7 +3720,7 @@
     <comment>Cell inspector, JSON tree and folded JSON text: an array folded to one line. {count} is how many elements it has. Keep the square brackets around it.</comment>
   </data>
   <data name="Results_StaleFiltersTip" xml:space="preserve">
-    <value>查询已被编辑：请运行它以更新筛选</value>
+    <value>查询已被编辑：请运行它以更新筛选。</value>
     <comment>Results area: tooltip over the dimmed browse filter chips after the page query was edited by hand.</comment>
   </data>
   <data name="Results_CopyAsMenu" xml:space="preserve">
@@ -3868,7 +3868,7 @@
     <comment>Query plan header: button that shows the plan as text.</comment>
   </data>
   <data name="Results_PlanViewTree" xml:space="preserve">
-    <value>树</value>
+    <value>树形</value>
     <comment>Query plan header: button that shows the plan as a tree.</comment>
   </data>
   <data name="Results_PlanCloseTip" xml:space="preserve">
@@ -3884,15 +3884,15 @@
     <comment>Cell inspector: button that switches to editing the value.</comment>
   </data>
   <data name="Results_InspectorTree" xml:space="preserve">
-    <value>树</value>
+    <value>树形</value>
     <comment>Cell inspector: toggle button that shows a JSON value as a tree.</comment>
   </data>
   <data name="Results_InspectorTreeTip" xml:space="preserve">
-    <value>切换树 / 文本视图</value>
+    <value>切换树形 / 文本视图</value>
     <comment>Cell inspector: tooltip of the Tree toggle.</comment>
   </data>
   <data name="Results_InspectorWrap" xml:space="preserve">
-    <value>换行</value>
+    <value>自动换行</value>
     <comment>Cell inspector: toggle button for word wrap.</comment>
   </data>
   <data name="Results_InspectorWrapTip" xml:space="preserve">
@@ -3952,7 +3952,7 @@
     <comment>Status line: following a foreign key failed because a key column is not in the result. {column} is a column name.</comment>
   </data>
   <data name="Results_CantFollowNull" xml:space="preserve">
-    <value>无法跟随 NULL 键 — 它不引用任何行。</value>
+    <value>无法跟随 NULL 键，它不引用任何行。</value>
     <comment>Status line: the clicked foreign key cell is NULL, so there is no row to jump to.</comment>
   </data>
   <data name="Results_DiscardInspectorEdit" xml:space="preserve">
@@ -3984,7 +3984,7 @@
     <comment>Status line while an import file is read. {file} is a file name, such as data.csv.</comment>
   </data>
   <data name="Results_ImportNothing" xml:space="preserve">
-    <value>没有可导入的内容 — 文件中没有行。</value>
+    <value>没有可导入的内容：文件中没有行。</value>
     <comment>Status line: the import file was empty.</comment>
   </data>
   <data name="Results_ImportFailed" xml:space="preserve">
@@ -4056,7 +4056,7 @@
     <comment>Status bar: the grid shows fewer columns than the result has. {shown} and {total} are numbers, such as 300 and 5,000.</comment>
   </data>
   <data name="Results_CapRows" xml:space="preserve">
-    <value>已限制为 {max} 行 — 请细化查询以获取完整结果</value>
+    <value>已限制为 {max} 行，请细化查询以获取完整结果</value>
     <comment>Status bar warning: the result was cut at a row limit. {max} is the limit, such as 100,000.</comment>
   </data>
   <data name="Results_CapBytes" xml:space="preserve">
@@ -4104,11 +4104,11 @@
     <comment>Status line after a failed statement. {message} is the server's message, {location} is empty or the text '(line 3, column 15)' with a leading space, {note} is empty or the text 'transaction rolled back' with a leading space.</comment>
   </data>
   <data name="Results_ErrorLocation" xml:space="preserve">
-    <value> （第 {line} 行，第 {column} 列）</value>
+    <value>（第 {line} 行，第 {column} 列）</value>
     <comment>Added to an error status line: where in the editor the error is. Keep the leading space. {line} and {column} are numbers.</comment>
   </data>
   <data name="Results_ErrorRolledBack" xml:space="preserve">
-    <value> — 事务已回滚</value>
+    <value>，事务已回滚</value>
     <comment>Added to an error status line when the statement ran in a transaction that was rolled back. Keep the leading space.</comment>
   </data>
   <data name="Results_TimingFirstByte" xml:space="preserve">
@@ -4200,7 +4200,7 @@
     <comment>Elapsed time of a running query in seconds. {seconds} is a number with one decimal, such as 2.5.</comment>
   </data>
   <data name="Results_HintScriptReadOnly" xml:space="preserve">
-    <value>多语句脚本以只读方式运行 — 请单独运行语句以进行编辑。</value>
+    <value>多语句脚本以只读方式运行，请单独运行语句以进行编辑。</value>
     <comment>Completes the tooltip 'Results are read-only: …' for a script's results.</comment>
   </data>
   <data name="Results_TheTable" xml:space="preserve">
@@ -4224,7 +4224,7 @@
     <comment>Completes the tooltip 'Results are read-only: …'.</comment>
   </data>
   <data name="Results_HintNotPlainTable" xml:space="preserve">
-    <value>数据源是视图、函数或其他无法按键更新行的关系。</value>
+    <value>数据源是视图、函数或其他无法按键更新行的对象。</value>
     <comment>Completes the tooltip 'Results are read-only: …'.</comment>
   </data>
   <data name="Results_HintRenamedColumns" xml:space="preserve">
@@ -4232,7 +4232,7 @@
     <comment>Completes the tooltip 'Results are read-only: …'. AS is the SQL keyword.</comment>
   </data>
   <data name="Results_HintPrimaryKeyNotSelected" xml:space="preserve">
-    <value>结果中没有 {table} 的主键 — 请将其包含在内以进行编辑。</value>
+    <value>结果中没有 {table} 的主键，请将其包含在内以进行编辑。</value>
     <comment>Completes the tooltip 'Results are read-only: …'. {table} is schema.table or the words 'the table'.</comment>
   </data>
   <data name="Results_HintRepeatedTable" xml:space="preserve">
@@ -4280,11 +4280,11 @@
     <comment>Message when someone edits a key column. {column} is a column name.</comment>
   </data>
   <data name="Results_StagedCell" xml:space="preserve">
-    <value>已暂存 {cell} — 提交之前不会应用任何更改</value>
+    <value>已暂存 {cell}，提交之前不会应用任何更改</value>
     <comment>Status line after an edit was staged (safe mode). {cell} is schema.table.column.</comment>
   </data>
   <data name="Results_StagedFields" xml:space="preserve">
-    <value>已暂存 {table} 的 {number} 个字段 — 提交之前不会应用任何更改</value>
+    <value>已暂存 {table} 的 {number} 个字段，提交之前不会应用任何更改</value>
     <comment>Status line after several fields of one row were staged. {number} is how many, {table} is schema.table.</comment>
   </data>
   <data name="Results_PkNotNull" xml:space="preserve">
@@ -4312,7 +4312,7 @@
     <comment>Status line: deleting rows failed and nothing was deleted. {message} is the reason.</comment>
   </data>
   <data name="Results_StagedDeletes_other" xml:space="preserve">
-    <value>已暂存 {count} 项删除 — 提交之前不会应用任何更改</value>
+    <value>已暂存 {count} 项删除，提交之前不会应用任何更改</value>
     <comment>Status line after deletes were staged (safe mode). {count} is how many.</comment>
   </data>
   <data name="Results_UnstagedDeletes_other" xml:space="preserve">
@@ -4328,15 +4328,15 @@
     <comment>Message in the Add-row dialog when changes can't be staged.</comment>
   </data>
   <data name="Results_StagedInsert" xml:space="preserve">
-    <value>已暂存 1 项插入 — 提交之前不会应用任何更改</value>
+    <value>已暂存 1 项插入，提交之前不会应用任何更改</value>
     <comment>Status line after an insert was staged (safe mode).</comment>
   </data>
   <data name="Results_Committed_other" xml:space="preserve">
-    <value>已在一个事务中提交 {count} 项暂存的更改 — 影响 {affected}</value>
+    <value>已在一个事务中提交 {count} 项暂存的更改，影响 {affected}</value>
     <comment>Status line after committing staged changes. {count} is how many, {affected} a row count with its unit, such as 5 rows.</comment>
   </data>
   <data name="Results_CommitFailed" xml:space="preserve">
-    <value>提交失败 — 未应用任何暂存的更改：{message}</value>
+    <value>提交失败，未应用任何暂存的更改：{message}</value>
     <comment>Status line: committing failed and nothing was applied. {message} is the reason.</comment>
   </data>
   <data name="Results_Restaged_other" xml:space="preserve">
@@ -4348,11 +4348,11 @@
     <comment>Part of the status line after 'Reload and restage'. {count} is how many rows.</comment>
   </data>
   <data name="Results_ReloadedNothing" xml:space="preserve">
-    <value>已重新加载 — 请审阅后再次提交</value>
+    <value>已重新加载，请审阅后再次提交</value>
     <comment>Status line after 'Reload and restage' when nothing needed to change.</comment>
   </data>
   <data name="Results_Reloaded" xml:space="preserve">
-    <value>已重新加载：{parts} — 请审阅后再次提交</value>
+    <value>已重新加载：{parts}，请审阅后再次提交</value>
     <comment>Status line after 'Reload and restage'. {parts} is a list of phrases, such as '2 rows restaged on the current values'.</comment>
   </data>
   <data name="Results_StagedLeft_other" xml:space="preserve">
@@ -4536,7 +4536,7 @@
     <comment>Window title of the dialog that imports a CSV or JSON file into a table. pgNimbus is the product name.</comment>
   </data>
   <data name="Dialogs_ImportSchemaLabel" xml:space="preserve">
-    <value>架构</value>
+    <value>模式</value>
     <comment>Import dialog: small label above the box that picks the schema (a PostgreSQL namespace) of the target table.</comment>
   </data>
   <data name="Dialogs_ImportTableLabel" xml:space="preserve">
@@ -4592,7 +4592,7 @@
     <comment>Window title of the dialog that reviews staged changes (safe mode) before they are committed. pgNimbus is the product name.</comment>
   </data>
   <data name="Dialogs_PendingHint" xml:space="preserve">
-    <value>提交时，这些 SQL 会作为一个事务运行 — 要么全部生效，要么全部不生效。每个被编辑或删除的行会先被重新读取并加锁：如果自你加载以来另一个会话更改或删除了它，整个提交都会回滚，并向你显示发生了什么变化。值以内联方式显示以供审阅；实际执行使用参数化。</value>
+    <value>提交时，这些 SQL 会作为一个事务运行：要么全部生效，要么全部不生效。每个被编辑或删除的行会先被重新读取并加锁：如果自你加载以来另一个会话更改或删除了它，整个提交都会回滚，并向你显示发生了什么变化。值以内联方式显示以供审阅；实际执行使用参数化。</value>
     <comment>Staged changes dialog: explanation under the title of what the commit does.</comment>
   </data>
   <data name="Dialogs_DiscardAllButton" xml:space="preserve">
@@ -4684,7 +4684,7 @@
     <comment>Commit rolled back dialog: shown in the "You staged" cell when the user staged a delete of the whole row.</comment>
   </data>
   <data name="Dialogs_ConflictMessage" xml:space="preserve">
-    <value>提交已回滚 — 未应用任何更改。自你加载以来，另一个会话造成：{what}。{detail}</value>
+    <value>提交已回滚，未应用任何更改。自你加载以来，另一个会话造成：{what}。{detail}</value>
     <comment>Commit rolled back dialog (text under the title) and status line: why the commit was rolled back. {what} is the count part, such as "1 row was changed and 1 row was deleted"; {detail} is one sentence about the first row.</comment>
   </data>
   <data name="Dialogs_ConflictChanged_other" xml:space="preserve">
@@ -4700,11 +4700,11 @@
     <comment>Part of the rolled-back commit message: joins the two counts. {changed} is such as "1 row was changed", {deleted} such as "2 rows were deleted".</comment>
   </data>
   <data name="Dialogs_ConflictMessageLocked" xml:space="preserve">
-    <value>提交已回滚 — 未应用任何更改。有暂存的行被另一个会话的未结事务锁定（已等待 {seconds} 秒）。请在其提交或回滚后重试。</value>
+    <value>提交已回滚，未应用任何更改。有暂存的行被另一个会话的未结事务锁定（已等待 {seconds} 秒）。请在其提交或回滚后重试。</value>
     <comment>Status line and dialog text: the commit gave up waiting for a row lock. {seconds} is how long it waited, such as 5.</comment>
   </data>
   <data name="Dialogs_ConflictMessageRowCount_other" xml:space="preserve">
-    <value>提交已回滚 — 未应用任何更改。一项暂存的更改本应影响 {expected} 行，却影响了 {affected} 行；表中的行已与暂存时不一致。请重新加载并再次暂存该更改。</value>
+    <value>提交已回滚，未应用任何更改。一项暂存的更改本应影响 {expected} 行，却影响了 {affected} 行；表中的行已与暂存时不一致。请重新加载并再次暂存该更改。</value>
     <comment>Status line and dialog text: a staged statement touched another number of rows than expected. Plural. {expected} is how many it was meant to touch, {affected} how many it touched.</comment>
   </data>
   <data name="Dialogs_ConflictStagedDelete" xml:space="preserve">
@@ -4976,7 +4976,7 @@
     <comment>Database Overview window: tooltip of the index cache-hit figure. shared_buffers is a PostgreSQL setting name.</comment>
   </data>
   <data name="Monitoring_OverviewTabLargest" xml:space="preserve">
-    <value>最大的关系</value>
+    <value>最大的表</value>
     <comment>Database Overview window: tab: the biggest tables and materialized views.</comment>
   </data>
   <data name="Monitoring_OverviewTabScans" xml:space="preserve">
@@ -4988,7 +4988,7 @@
     <comment>Database Overview window: tab: indexes that were never scanned.</comment>
   </data>
   <data name="Monitoring_OverviewUnusedNote" xml:space="preserve">
-    <value>自上次统计信息重置以来从未被扫描。唯一索引和主键索引已排除 — 无论是否被扫描，它们都在强制执行约束。</value>
+    <value>自上次统计信息重置以来从未被扫描。已排除唯一索引和主键索引：无论是否被扫描，它们都在强制执行约束。</value>
     <comment>Database Overview window: note under the Unused indexes grid.</comment>
   </data>
   <data name="Monitoring_OverviewKindMatview" xml:space="preserve">
@@ -5004,7 +5004,7 @@
     <comment>Database Overview window: Kind column: an ordinary table.</comment>
   </data>
   <data name="Monitoring_OverviewRelations_other" xml:space="preserve">
-    <value>{count} 个关系</value>
+    <value>{count} 个对象</value>
     <comment>Database Overview window: status line. Plural. {count} is how many relations, such as 50. Joined with other parts by ' · '.</comment>
   </data>
   <data name="Monitoring_OverviewUnusedIndexes_other" xml:space="preserve">
@@ -5016,7 +5016,7 @@
     <comment>Database Overview window: status line part. Plural. {count} is how many unused indexes, such as 4; {size} their total size, such as 12.0 MB.</comment>
   </data>
   <data name="Monitoring_ColSchema" xml:space="preserve">
-    <value>架构</value>
+    <value>模式</value>
     <comment>Column header in the Database Overview and Slow Queries grids: schema name.</comment>
   </data>
   <data name="Monitoring_ColName" xml:space="preserve">
@@ -5028,7 +5028,7 @@
     <comment>Column header in the Database Overview and Slow Queries grids: table, matview or partitioned.</comment>
   </data>
   <data name="Monitoring_ColRowsEstimate" xml:space="preserve">
-    <value>行数（估计）</value>
+    <value>行数（预估）</value>
     <comment>Column header in the Database Overview and Slow Queries grids: estimated row count.</comment>
   </data>
   <data name="Monitoring_ColTable" xml:space="preserve">
@@ -5056,11 +5056,11 @@
     <comment>Column header in the Database Overview and Slow Queries grids: share of scans that used an index.</comment>
   </data>
   <data name="Monitoring_ColLiveRows" xml:space="preserve">
-    <value>活跃行</value>
+    <value>活元组</value>
     <comment>Column header in the Database Overview and Slow Queries grids: number of live rows.</comment>
   </data>
   <data name="Monitoring_ColDeadRows" xml:space="preserve">
-    <value>死行</value>
+    <value>死元组</value>
     <comment>Column header in the Database Overview and Slow Queries grids: number of dead rows (not yet vacuumed).</comment>
   </data>
   <data name="Monitoring_ColIndex" xml:space="preserve">
@@ -5156,7 +5156,7 @@
     <comment>LISTEN / NOTIFY window: error line when the connection dropped and could not be restored. {error} is the server's or driver's message.</comment>
   </data>
   <data name="Monitoring_NotifyReconnected" xml:space="preserve">
-    <value>已于 {time} 重新连接 — 连接中断期间发布的通知没有送达。</value>
+    <value>已于 {time} 重新连接，连接中断期间发布的通知没有送达。</value>
     <comment>LISTEN / NOTIFY window: status note after the connection was restored. {time} is a clock time such as 09:41:07.</comment>
   </data>
   <data name="Monitoring_NotifySent" xml:space="preserve">
@@ -5364,7 +5364,7 @@
     <comment>Roles and Permissions window, top bar: small capitals label above the role this connection acts as.</comment>
   </data>
   <data name="Security_ConnectedAsTip" xml:space="preserve">
-    <value>此窗口读取目录时使用的角色 — 它只能看到该角色被允许看到的内容</value>
+    <value>此窗口读取目录时使用的角色，它只能看到该角色被允许看到的内容。</value>
     <comment>Tooltip of the CONNECTED AS block in the Roles and Permissions window.</comment>
   </data>
   <data name="Security_Server" xml:space="preserve">
@@ -5468,7 +5468,7 @@
     <comment>Roles tab: button that opens the selected role's CREATE ROLE statement in a new query tab. CREATE ROLE is SQL.</comment>
   </data>
   <data name="Security_CreateRoleScriptTip" xml:space="preserve">
-    <value>在新查询标签页中打开此角色的 CREATE ROLE 语句。其中不含密码 — pgNimbus 从不读取密码哈希。</value>
+    <value>在新查询标签页中打开此角色的 CREATE ROLE 语句。其中不含密码，pgNimbus 从不读取密码哈希。</value>
     <comment>Roles tab: tooltip of the CREATE ROLE script button.</comment>
   </data>
   <data name="Security_MenuCopyName" xml:space="preserve">
@@ -5636,7 +5636,7 @@
     <comment>Role dialog: small capitals heading above the attribute check boxes.</comment>
   </data>
   <data name="Security_InheritTip" xml:space="preserve">
-    <value>关闭表示该角色必须先执行 SET ROLE，组的权限才会生效</value>
+    <value>关闭表示该角色必须先执行 SET ROLE，组的权限才会生效。</value>
     <comment>Role dialog: tooltip of the Inherit check box. SET ROLE is SQL.</comment>
   </data>
   <data name="Security_BypassRlsTip" xml:space="preserve">
@@ -5668,15 +5668,15 @@
     <comment>Role dialog: small capitals heading above the SQL statement the dialog will run.</comment>
   </data>
   <data name="Security_HintReadAllData" xml:space="preserve">
-    <value>对所有架构中的每个表、视图和序列拥有 SELECT 权限</value>
+    <value>对所有模式中的每个表、视图和序列拥有 SELECT 权限。</value>
     <comment>Role dialog: hint beside the pg_read_all_data check box. SELECT is SQL.</comment>
   </data>
   <data name="Security_HintWriteAllData" xml:space="preserve">
-    <value>对每个表拥有 INSERT、UPDATE 和 DELETE 权限</value>
+    <value>对每个表拥有 INSERT、UPDATE 和 DELETE 权限。</value>
     <comment>Role dialog: hint beside the pg_write_all_data check box. INSERT, UPDATE and DELETE are SQL.</comment>
   </data>
   <data name="Security_HintMonitor" xml:space="preserve">
-    <value>无需超级用户即可读取统计和监控视图</value>
+    <value>无需超级用户即可读取统计和监控视图。</value>
     <comment>Role dialog: hint beside the pg_monitor check box.</comment>
   </data>
   <data name="Security_HintLoginRole" xml:space="preserve">
@@ -5688,7 +5688,7 @@
     <comment>Role dialog: hint beside a role in the MEMBER OF list: this role cannot log in, so it is a group.</comment>
   </data>
   <data name="Security_NeedsName" xml:space="preserve">
-    <value>角色需要名称。</value>
+    <value>请填写角色名称。</value>
     <comment>Role dialog: validation message under the form.</comment>
   </data>
   <data name="Security_PasswordsDiffer" xml:space="preserve">
@@ -5760,15 +5760,15 @@
     <comment>Drop role dialog: label of the drop-down that picks the role that takes over the objects.</comment>
   </data>
   <data name="Security_ReassignNobody" xml:space="preserve">
-    <value>无 — 删除所拥有的对象</value>
+    <value>无（删除所拥有的对象）</value>
     <comment>Drop role dialog: the drop-down choice that gives the objects to no one, so they are deleted.</comment>
   </data>
   <data name="Security_GrantMembership" xml:space="preserve">
-    <value>授予我脚本所需的成员关系</value>
+    <value>为我授予脚本所需的角色成员身份</value>
     <comment>Drop role dialog: check box text.</comment>
   </data>
   <data name="Security_GrantMembershipTip" xml:space="preserve">
-    <value>REASSIGN OWNED 和 DROP OWNED 需要被清空角色的权限。脚本会将这些权限授予你，并回收在其之后仍保留的那一项。</value>
+    <value>REASSIGN OWNED 和 DROP OWNED 要求你具备被删除角色的权限。脚本会把这些权限授予你，并在最后回收仍保留的那一项。</value>
     <comment>Drop role dialog: tooltip of the check box. REASSIGN OWNED and DROP OWNED are SQL statements.</comment>
   </data>
   <data name="Security_WillDeleteOwned" xml:space="preserve">
@@ -5784,7 +5784,7 @@
     <comment>Button in the drop role dialog and the bulk grant dialog: opens the generated script in a new query tab.</comment>
   </data>
   <data name="Security_OpenInEditorDropTip" xml:space="preserve">
-    <value>请自行运行它 — 并在此角色拥有对象的每个其他数据库中重新运行</value>
+    <value>请自行运行它，并在此角色拥有对象的每个其他数据库中重新运行。</value>
     <comment>Drop role dialog: tooltip of the Open in editor button.</comment>
   </data>
   <data name="Security_RunIt" xml:space="preserve">
@@ -5820,7 +5820,7 @@
     <comment>Drop role dialog, Kind column: a foreign table.</comment>
   </data>
   <data name="Security_KindSchema" xml:space="preserve">
-    <value>架构</value>
+    <value>模式</value>
     <comment>Drop role dialog, Kind column: a schema.</comment>
   </data>
   <data name="Security_KindProcedure" xml:space="preserve">
@@ -5844,7 +5844,7 @@
     <comment>Drop role dialog, Kind column of the privileges list: a privilege granted on a table.</comment>
   </data>
   <data name="Security_KindPrivilegeOnSchema" xml:space="preserve">
-    <value>架构上的权限</value>
+    <value>模式上的权限</value>
     <comment>Drop role dialog, Kind column of the privileges list: a privilege granted on a schema.</comment>
   </data>
   <data name="Security_BulkWindowTitle" xml:space="preserve">
@@ -5852,15 +5852,15 @@
     <comment>Window title of the bulk grant dialog. Keep the product name pgNimbus.</comment>
   </data>
   <data name="Security_BulkTitle" xml:space="preserve">
-    <value>授予角色对整个架构的访问权限</value>
+    <value>授予角色对整个模式的访问权限</value>
     <comment>Bulk grant dialog: heading.</comment>
   </data>
   <data name="Security_BulkHint" xml:space="preserve">
-    <value>脚本总是先授予架构本身的 USAGE 权限 — 没有它，下面每个表的授权都不起作用。这里不会运行任何内容：脚本会在编辑器中打开，供你阅读并运行。</value>
+    <value>脚本总是先授予模式本身的 USAGE 权限，没有它，下面每个表的授权都不起作用。这里不会运行任何内容：脚本会在编辑器中打开，供你阅读并运行。</value>
     <comment>Bulk grant dialog: explanation under the heading. USAGE is a SQL privilege name and stays as written.</comment>
   </data>
   <data name="Security_Schema" xml:space="preserve">
-    <value>架构</value>
+    <value>模式</value>
     <comment>Label or placeholder of a schema picker: the bulk grant dialog, the Permissions tab and the Row-level security tab.</comment>
   </data>
   <data name="Security_Grantee" xml:space="preserve">
@@ -5868,7 +5868,7 @@
     <comment>Bulk grant dialog: label of the picker for the role that gets access.</comment>
   </data>
   <data name="Security_SchemaPlaceholder" xml:space="preserve">
-    <value>选择架构</value>
+    <value>选择模式</value>
     <comment>Bulk grant dialog: placeholder of the schema picker.</comment>
   </data>
   <data name="Security_GranteePlaceholder" xml:space="preserve">
@@ -5896,11 +5896,11 @@
     <comment>Bulk grant dialog: what the Read and write preset does. SELECT, INSERT, UPDATE, DELETE and USAGE are SQL privilege names.</comment>
   </data>
   <data name="Security_PresetFull" xml:space="preserve">
-    <value>架构中的所有权限</value>
+    <value>模式中的所有权限</value>
     <comment>Bulk grant dialog: name of a preset in the picker.</comment>
   </data>
   <data name="Security_PresetFullDescription" xml:space="preserve">
-    <value>对表、序列和函数的 ALL PRIVILEGES，以及对架构本身的 CREATE。</value>
+    <value>对表、序列和函数的 ALL PRIVILEGES，以及对模式本身的 CREATE。</value>
     <comment>Bulk grant dialog: what the Everything in the schema preset does. ALL PRIVILEGES and CREATE are SQL.</comment>
   </data>
   <data name="Security_PresetRevokeAll" xml:space="preserve">
@@ -5908,7 +5908,7 @@
     <comment>Bulk grant dialog: name of a preset in the picker.</comment>
   </data>
   <data name="Security_PresetRevokeAllDescription" xml:space="preserve">
-    <value>对表、序列、函数和架构执行 REVOKE ALL — 默认权限也一并撤销。</value>
+    <value>对表、序列、函数和模式执行 REVOKE ALL，默认权限也一并撤销。</value>
     <comment>Bulk grant dialog: what the Revoke everything preset does. REVOKE ALL is SQL.</comment>
   </data>
   <data name="Security_IncludeFuture" xml:space="preserve">
@@ -5928,7 +5928,7 @@
     <comment>Bulk grant dialog: placeholder of the Created by picker.</comment>
   </data>
   <data name="Security_CreatedByWarning" xml:space="preserve">
-    <value>ALTER DEFAULT PRIVILEGES 与创建对象的角色绑定，而不是与对象所在的架构绑定。指向错误的创建者时，它会正常运行却毫无作用 — 请填写你的迁移所使用的连接角色。</value>
+    <value>ALTER DEFAULT PRIVILEGES 与创建对象的角色绑定，而不是与对象所在的模式绑定。指向错误的创建者时，它会正常运行却毫无作用，请填写你的迁移所使用的连接角色。</value>
     <comment>Bulk grant dialog: warning under the Created by picker. ALTER DEFAULT PRIVILEGES is a SQL statement.</comment>
   </data>
   <data name="Security_GrantsTabTitle" xml:space="preserve">
@@ -5944,7 +5944,7 @@
     <comment>Permissions tab: button that opens the bulk grant dialog.</comment>
   </data>
   <data name="Security_BulkGrantTip" xml:space="preserve">
-    <value>授予角色对整个架构的访问权限，包括之后创建的对象</value>
+    <value>授予角色对整个模式的访问权限，包括之后创建的对象</value>
     <comment>Permissions tab: tooltip of the Bulk grant button.</comment>
   </data>
   <data name="Security_EditGrants" xml:space="preserve">
@@ -5992,7 +5992,7 @@
     <comment>Permissions tab: choice in the picker of what kind of object to show.</comment>
   </data>
   <data name="Security_KindOptionSchema" xml:space="preserve">
-    <value>架构</value>
+    <value>模式</value>
     <comment>Permissions tab: choice in the picker of what kind of object to show.</comment>
   </data>
   <data name="Security_KindOptionDatabase" xml:space="preserve">
@@ -6020,7 +6020,7 @@
     <comment>Permissions tab: banner shown when the object's privileges were never changed. GRANT and REVOKE are SQL. {owner} is the owning role's name, such as postgres.</comment>
   </data>
   <data name="Security_CellTip" xml:space="preserve">
-    <value>{privilege} — {explanation}</value>
+    <value>{privilege}：{explanation}</value>
     <comment>Permissions tab: tooltip of a cell of the matrix. {privilege} is the SQL privilege such as SELECT; {explanation} says why the role has it or not, such as inherited from readers.</comment>
   </data>
   <data name="Security_CellTipPendingRevoke" xml:space="preserve">
@@ -6112,23 +6112,23 @@
     <comment>Permissions tab, sentence under the matrix. {role} is a role name, {object} the object such as sales.orders.</comment>
   </data>
   <data name="Security_SentenceNoneBlocked" xml:space="preserve">
-    <value>{role} 在 {object} 上没有任何权限。{role} 还缺少架构 {schema} 的 USAGE 权限，这会阻止访问其中的所有内容。</value>
+    <value>{role} 在 {object} 上没有任何权限。{role} 还缺少模式 {schema} 的 USAGE 权限，这会阻止访问其中的所有内容。</value>
     <comment>Permissions tab, sentence under the matrix. {role} is a role name, {object} the object such as sales.orders, {schema} its schema. USAGE is a SQL privilege name.</comment>
   </data>
   <data name="Security_SentenceBlocked_other" xml:space="preserve">
-    <value>{role} 持有 {object} 上的 {privileges} — {explanation} — 但无法使用：它缺少架构 {schema} 的 USAGE 权限，而其中每个对象都首先需要该权限。</value>
+    <value>{role} 持有 {object} 上的 {privileges}（{explanation}），但无法使用：它缺少模式 {schema} 的 USAGE 权限，而其中每个对象都首先需要该权限。</value>
     <comment>Permissions tab, sentence under the matrix. Plural: several privileges are held but unusable. {role} is a role name, {privileges} a list such as SELECT and INSERT, {object} the object, {explanation} why the role has them, {schema} the schema. "them" is the privileges. USAGE is a SQL privilege name.</comment>
   </data>
   <data name="Security_SentenceBlockedDenied_other" xml:space="preserve">
-    <value>{role} 持有 {object} 上的 {privileges} — {explanation} — 但无法使用：它缺少架构 {schema} 的 USAGE 权限，而其中每个对象都首先需要该权限。它也没有 {denied} 授权。</value>
+    <value>{role} 持有 {object} 上的 {privileges}（{explanation}），但无法使用：它缺少模式 {schema} 的 USAGE 权限，而其中每个对象都首先需要该权限。它也没有 {denied} 授权。</value>
     <comment>Permissions tab, sentence under the matrix. Plural: several privileges are held but unusable, and others are missing. Same placeholders as Security_SentenceBlocked_other, plus {denied}, the missing privileges as a list joined with or, such as INSERT or UPDATE.</comment>
   </data>
   <data name="Security_SentenceCan" xml:space="preserve">
-    <value>{role} 可以对 {object} 执行 {privileges} — {explanation}。</value>
+    <value>{role} 可以对 {object} 执行 {privileges}（{explanation}）。</value>
     <comment>Permissions tab, sentence under the matrix. {role} is a role name, {privileges} what it can do as SQL verbs such as SELECT and INSERT, {object} the object such as sales.orders, {explanation} why, such as inherited from readers.</comment>
   </data>
   <data name="Security_SentenceCanCannot" xml:space="preserve">
-    <value>{role} 可以对 {object} 执行 {privileges} — {explanation}。它不能执行 {denied}。</value>
+    <value>{role} 可以对 {object} 执行 {privileges}（{explanation}）。它不能执行 {denied}。</value>
     <comment>Permissions tab, sentence under the matrix. Same placeholders as Security_SentenceCan, plus {denied}, what the role cannot do as a list joined with or, such as INSERT or UPDATE.</comment>
   </data>
   <data name="Security_CopyAsSql" xml:space="preserve">
@@ -6144,7 +6144,7 @@
     <comment>Default privileges tab: column header of the role that will create the objects the default applies to.</comment>
   </data>
   <data name="Security_ColInSchema" xml:space="preserve">
-    <value>所在架构</value>
+    <value>所在模式</value>
     <comment>Default privileges tab: column header of the schema the default applies in.</comment>
   </data>
   <data name="Security_ColAppliesTo" xml:space="preserve">
@@ -6160,7 +6160,7 @@
     <comment>Default privileges tab: column header of the list of privileges.</comment>
   </data>
   <data name="Security_AllSchemas" xml:space="preserve">
-    <value>（所有架构）</value>
+    <value>（所有模式）</value>
     <comment>Shown instead of a schema name in the Default privileges tab (the default applies in every schema) and as the first choice of the schema filter in the Row-level security tab. Keep the parentheses.</comment>
   </data>
   <data name="Security_AppliesToTables" xml:space="preserve">
@@ -6180,7 +6180,7 @@
     <comment>Default privileges tab, Applies to column: the default applies to data types.</comment>
   </data>
   <data name="Security_AppliesToSchemas" xml:space="preserve">
-    <value>架构</value>
+    <value>模式</value>
     <comment>Default privileges tab, Applies to column: the default applies to schemas.</comment>
   </data>
   <data name="Security_NoDefaultPrivileges" xml:space="preserve">
@@ -6188,15 +6188,15 @@
     <comment>Default privileges tab: heading shown when there are none.</comment>
   </data>
   <data name="Security_NoDefaultPrivilegesHint" xml:space="preserve">
-    <value>从现在起创建的每个对象都只带有内置默认值：所有者拥有全部权限，PUBLIC 对函数拥有 EXECUTE、对类型拥有 USAGE，对表和序列则完全没有权限。</value>
+    <value>此后创建的每个对象都只有内置默认权限：所有者拥有全部权限；PUBLIC 对函数有 EXECUTE 权限、对类型有 USAGE 权限；表和序列则不授予任何权限。</value>
     <comment>Default privileges tab: explanation under the heading shown when there are none. PUBLIC, EXECUTE and USAGE are SQL words and stay as written.</comment>
   </data>
   <data name="Security_DefaultsNoteExisting" xml:space="preserve">
-    <value>这些不影响已存在的对象。它们只适用于从现在起创建的对象，因此 GRANT … ON ALL TABLES IN SCHEMA … 和默认权限两者都需要：谁也不能取代谁。</value>
+    <value>默认权限不影响已存在的对象，只适用于此后创建的对象。因此 GRANT … ON ALL TABLES IN SCHEMA … 和默认权限需要同时使用，二者不能互相代替。</value>
     <comment>Default privileges tab: first note under the list. The GRANT statement is SQL and stays as written.</comment>
   </data>
   <data name="Security_DefaultsNoteCreator" xml:space="preserve">
-    <value>它们与创建对象的角色绑定，而不是与对象所在的架构绑定。为错误的创建者设置的默认权限会正常运行却悄无声息地毫无作用 — 这是人们说设置了默认权限却没有变化的最常见原因。</value>
+    <value>默认权限与创建对象的角色绑定，而不是与对象所在的模式绑定。为错误的创建者设置默认权限不会报错，但完全不起作用，这是“设置了默认权限却没有生效”最常见的原因。</value>
     <comment>Default privileges tab: second note under the list.</comment>
   </data>
   <data name="Security_DefaultPrivilegesTabTitle" xml:space="preserve">
@@ -6204,7 +6204,7 @@
     <comment>Title of the query tab that opens with an ALTER DEFAULT PRIVILEGES statement. {owner} is the role that creates the objects, such as app_rw.</comment>
   </data>
   <data name="Security_SchemaFilterTip" xml:space="preserve">
-    <value>仅列出任何位置有行级安全的架构</value>
+    <value>仅列出任何位置有行级安全的模式</value>
     <comment>Row-level security tab: tooltip of the schema filter.</comment>
   </data>
   <data name="Security_CopyPolicyAsSql" xml:space="preserve">
@@ -6212,11 +6212,11 @@
     <comment>Row-level security tab: button that opens the selected policy's CREATE POLICY statement in a new query tab.</comment>
   </data>
   <data name="Security_CopyPolicyAsSqlTip" xml:space="preserve">
-    <value>在新编辑器标签页中打开所选策略的 CREATE POLICY 语句 — Postgres 无法就地更改策略的命令或宽松性，因此重新创建就是编辑它的方式</value>
+    <value>在新编辑器标签页中打开所选策略的 CREATE POLICY 语句。Postgres 无法就地更改策略的命令或宽松性，因此重新创建就是编辑它的方式。</value>
     <comment>Row-level security tab: tooltip of the Copy policy as SQL button. CREATE POLICY is SQL.</comment>
   </data>
   <data name="Security_PoliciesInert" xml:space="preserve">
-    <value>策略无效 — RLS 已关闭</value>
+    <value>策略无效（RLS 已关闭）</value>
     <comment>Row-level security tab, list of tables: warning on a table that has policies but row-level security is switched off. RLS means row-level security.</comment>
   </data>
   <data name="Security_PoliciesDoNothing" xml:space="preserve">
@@ -6224,7 +6224,7 @@
     <comment>Row-level security tab: heading of a warning about a table whose policies have no effect.</comment>
   </data>
   <data name="Security_PoliciesDoNothingHint" xml:space="preserve">
-    <value>此表从未启用行级安全，因此下面所有策略都无效，每个角色都能读取每一行。编写策略并不会启用它 — ALTER TABLE … ENABLE ROW LEVEL SECURITY 才会。</value>
+    <value>此表从未启用行级安全，因此下面所有策略都无效，每个角色都能读取每一行。编写策略并不会启用它，ALTER TABLE … ENABLE ROW LEVEL SECURITY 才会。</value>
     <comment>Row-level security tab: explanation of the warning. The ALTER TABLE statement is SQL and stays as written.</comment>
   </data>
   <data name="Security_YouBypass" xml:space="preserve">
@@ -6240,11 +6240,11 @@
     <comment>Row-level security tab: label before the roles a policy applies to.</comment>
   </data>
   <data name="Security_PolicyUsing" xml:space="preserve">
-    <value>USING — 哪些现有行可见</value>
+    <value>USING：哪些现有行可见</value>
     <comment>Row-level security tab: label above a policy's USING expression. USING is the SQL keyword and stays first.</comment>
   </data>
   <data name="Security_PolicyWithCheck" xml:space="preserve">
-    <value>WITH CHECK — 允许哪些新增或更新的行</value>
+    <value>WITH CHECK：允许哪些新增或更新的行</value>
     <comment>Row-level security tab: label above a policy's WITH CHECK expression. WITH CHECK is the SQL keyword and stays first.</comment>
   </data>
   <data name="Security_NoPolicies" xml:space="preserve">
@@ -6292,11 +6292,11 @@
     <comment>Row-level security tab: warning body. {role} is the connected role. BYPASSRLS and FORCE ROW LEVEL SECURITY are SQL and stay as written.</comment>
   </data>
   <data name="Security_BypassOwner" xml:space="preserve">
-    <value>{role} 拥有此表，或是拥有它的角色的成员，且该表未设置 FORCE ROW LEVEL SECURITY — 因此下面的策略不会应用于它，尽管会应用于其他所有角色。ALTER TABLE … FORCE ROW LEVEL SECURITY 可使其对所有者也生效。</value>
+    <value>{role} 拥有此表，或是拥有它的角色的成员，且该表未设置 FORCE ROW LEVEL SECURITY，因此下面的策略不会应用于它，尽管会应用于其他所有角色。ALTER TABLE … FORCE ROW LEVEL SECURITY 可使其对所有者也生效。</value>
     <comment>Row-level security tab: warning body. {role} is the connected role. FORCE ROW LEVEL SECURITY and the ALTER TABLE statement are SQL and stay as written.</comment>
   </data>
   <data name="Security_ObjectDropped" xml:space="preserve">
-    <value>{object} 已不存在 — 它在对象列表构建之后被删除了。</value>
+    <value>{object} 已不存在：它在对象列表构建之后被删除了。</value>
     <comment>Error line of the Roles and Permissions window. {object} is the name of the object, such as sales.orders.</comment>
   </data>
   <data name="Backup_WindowTitle" xml:space="preserve">
@@ -6504,7 +6504,7 @@
     <comment>Heading of the Backup window when the whole database is backed up. {database} is a database name, such as shop.</comment>
   </data>
   <data name="Backup_TitleSchema" xml:space="preserve">
-    <value>备份架构 {schema}</value>
+    <value>备份模式 {schema}</value>
     <comment>Heading of the Backup window for one schema. {schema} is a schema name, such as sales.</comment>
   </data>
   <data name="Backup_TitleTable" xml:space="preserve">
@@ -6512,7 +6512,7 @@
     <comment>Heading of the Backup window for one table. {table} is a schema-qualified table name, such as sales.orders.</comment>
   </data>
   <data name="Backup_ScopeSchema" xml:space="preserve">
-    <value>架构 {schema}</value>
+    <value>模式 {schema}</value>
     <comment>Short description of what a backup covers: one schema. {schema} is a schema name, such as sales.</comment>
   </data>
   <data name="Backup_ScopeTable" xml:space="preserve">
@@ -6552,7 +6552,7 @@
     <comment>Backup window, while running: progress line once every table's rows are saved.</comment>
   </data>
   <data name="Backup_ProgressReading" xml:space="preserve">
-    <value>正在读取架构…</value>
+    <value>正在读取模式…</value>
     <comment>Backup window, while running: progress line at the start, while pg_dump reads the catalog.</comment>
   </data>
   <data name="Backup_ResultSaved" xml:space="preserve">
@@ -6716,7 +6716,7 @@
     <comment>Restore window, after a successful restore into a new database: detail. {database} is its name.</comment>
   </data>
   <data name="Restore_ResultRefreshed" xml:space="preserve">
-    <value>架构树已刷新。</value>
+    <value>模式树已刷新。</value>
     <comment>Restore window, after a successful restore into the current database: detail.</comment>
   </data>
   <data name="Restore_ResultStopped" xml:space="preserve">
@@ -6828,7 +6828,7 @@
     <comment>Hint under a restore error. Keep owners and permissions is the name of a check box in the Restore window.</comment>
   </data>
   <data name="Backup_HintPointsOutside" xml:space="preserve">
-    <value>备份引用了它所不包含的内容，例如另一个架构中的表。架构或表的备份需要其所引用的内容，因此请还原到包含这些内容的数据库，例如它的来源数据库。</value>
+    <value>备份引用了它所不包含的内容，例如另一个模式中的表。模式或表的备份需要其所引用的内容，因此请还原到包含这些内容的数据库，例如它的来源数据库。</value>
     <comment>Hint under a restore error.</comment>
   </data>
   <data name="Backup_HintMustBeOwner" xml:space="preserve">
@@ -6844,7 +6844,7 @@
     <comment>Hint under a backup error. pg_dump is a program name; Settings and Data are names of a page and a tab; pgNimbus is the product name.</comment>
   </data>
   <data name="Backup_HintBackupPermission" xml:space="preserve">
-    <value>你的角色无法读取其涵盖的所有内容。请使用有此能力的角色，或备份它能读取的架构或表。</value>
+    <value>你的角色无法读取其涵盖的所有内容。请使用有此能力的角色，或备份它能读取的模式或表。</value>
     <comment>Hint under a backup error.</comment>
   </data>
   <data name="Backup_HintCertificate" xml:space="preserve">
@@ -6864,7 +6864,7 @@
     <comment>Hint under a backup or restore error.</comment>
   </data>
   <data name="Backup_HintObjectGone" xml:space="preserve">
-    <value>窗口加载之后，其涵盖的某个内容被删除或重命名了。请刷新架构后重试。</value>
+    <value>窗口加载之后，其涵盖的某个内容被删除或重命名了。请刷新模式后重试。</value>
     <comment>Hint under a backup error.</comment>
   </data>
   <data name="Backup_GuideWinDownload" xml:space="preserve">
@@ -7044,7 +7044,7 @@
     <comment>Query Lab: a saved plan that was pasted in, not made here. Shown in the list line and the tooltip.</comment>
   </data>
   <data name="QueryLab_EstimatesOnly" xml:space="preserve">
-    <value>仅估计值</value>
+    <value>仅预估值</value>
     <comment>Query Lab: a plan that was not run (EXPLAIN without ANALYZE), so it holds the planner's estimates only. Shown in a list line beside the time.</comment>
   </data>
   <data name="QueryLab_ServerVersion" xml:space="preserve">
@@ -7168,7 +7168,7 @@
     <comment>Query Lab, plan tree: figure line of a node. {value} is the actual row count on both sides, such as 40 → 40.</comment>
   </data>
   <data name="QueryLab_LineEstRows" xml:space="preserve">
-    <value>估计行数 {value}</value>
+    <value>预估行数 {value}</value>
     <comment>Query Lab, plan tree: figure line of a node in a plan that was not run. est. is short for estimated. {value} is the planner's row estimate on both sides.</comment>
   </data>
   <data name="QueryLab_LineSelf" xml:space="preserve">
@@ -7204,7 +7204,7 @@
     <comment>Query Lab, plan tree: figure line. The node never ran in the after plan.</comment>
   </data>
   <data name="QueryLab_FigEstRows" xml:space="preserve">
-    <value>估计行数（每次循环）</value>
+    <value>预估行数（每次循环）</value>
     <comment>Query Lab, node details: name of a figure, the planner's row estimate for one loop of the node.</comment>
   </data>
   <data name="QueryLab_FigActRows" xml:space="preserve">
@@ -7224,7 +7224,7 @@
     <comment>Query Lab, node details: name of a figure, the node's time without the nodes below it.</comment>
   </data>
   <data name="QueryLab_FigCost" xml:space="preserve">
-    <value>估计成本（规划器单位）</value>
+    <value>预估成本（规划器单位）</value>
     <comment>Query Lab, node details: name of a figure, the planner's cost estimate in its own units, not a time.</comment>
   </data>
   <data name="QueryLab_FigBuffersHit" xml:space="preserve">
@@ -7256,19 +7256,19 @@
     <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): text under the 'N more' heading. Plural. {number} is a count such as 1,200. The text view is the plan shown as EXPLAIN text.</comment>
   </data>
   <data name="Plan_RowEstimateTitle" xml:space="preserve">
-    <value>行数估计偏差 {factor}×</value>
+    <value>行数预估偏差 {factor}×</value>
     <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): heading of a warning that the planner's row estimate was wrong. {factor} is how many times off, such as 120.</comment>
   </data>
   <data name="Plan_RowEstimateKind" xml:space="preserve">
-    <value>行数估计偏差</value>
+    <value>行数预估偏差</value>
     <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): the name of the 'row estimate off' warnings as a group, shown in the 'N more: …' line.</comment>
   </data>
   <data name="Plan_RowEstimateOverDetail" xml:space="preserve">
-    <value>规划器高估了 {node}：估计 {estimated} 行，实际 {actual} 行。统计信息过时或列相关会误导规划器 — 请尝试 ANALYZE 或扩展统计信息。</value>
+    <value>规划器高估了 {node}：预估 {estimated} 行，实际 {actual} 行。统计信息过时或列相关会误导规划器，请尝试 ANALYZE 或扩展统计信息。</value>
     <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): the planner expected more rows than the node returned. {node} is the plan node as EXPLAIN writes it, such as 'Seq Scan on orders o'; {estimated} and {actual} are row counts such as 5000 and 12. ANALYZE is a PostgreSQL command; keep it.</comment>
   </data>
   <data name="Plan_RowEstimateUnderDetail" xml:space="preserve">
-    <value>规划器低估了 {node}：估计 {estimated} 行，实际 {actual} 行。统计信息过时或列相关会误导规划器 — 请尝试 ANALYZE 或扩展统计信息。</value>
+    <value>规划器低估了 {node}：预估 {estimated} 行，实际 {actual} 行。统计信息过时或列相关会误导规划器，请尝试 ANALYZE 或扩展统计信息。</value>
     <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): the planner expected fewer rows than the node returned. {node} is the plan node as EXPLAIN writes it, such as 'Seq Scan on orders o'; {estimated} and {actual} are row counts such as 12 and 5000. ANALYZE is a PostgreSQL command; keep it.</comment>
   </data>
   <data name="Plan_SortSpillTitle" xml:space="preserve">
@@ -7348,7 +7348,7 @@
     <comment>Error shown on the status line or in the Import Query Plan dialog. "Node Type" is the name of a JSON property; keep it.</comment>
   </data>
   <data name="Plan_NothingToImport" xml:space="preserve">
-    <value>没有可导入的内容 — 请先粘贴 EXPLAIN 计划。</value>
+    <value>没有可导入的内容：请先粘贴 EXPLAIN 计划。</value>
     <comment>Error shown on the status line or in the Import Query Plan dialog: the box was empty.</comment>
   </data>
   <data name="Plan_TextTooLarge" xml:space="preserve">
@@ -7360,7 +7360,7 @@
     <comment>Error shown on the status line or in the Import Query Plan dialog: reading one line of a pasted text plan was stopped after a time limit.</comment>
   </data>
   <data name="Plan_TextNoNode" xml:space="preserve">
-    <value>这看起来不是 EXPLAIN 文本计划 — 第一行没有计划节点。</value>
+    <value>这看起来不是 EXPLAIN 文本计划：第一行没有计划节点。</value>
     <comment>Error shown on the status line or in the Import Query Plan dialog: the pasted text does not start with a plan node such as 'Seq Scan on orders'.</comment>
   </data>
   <data name="Plan_TextBadNode" xml:space="preserve">
@@ -7368,7 +7368,7 @@
     <comment>Error shown on the status line or in the Import Query Plan dialog. {line} is the line of the pasted plan that could not be read, as it was pasted.</comment>
   </data>
   <data name="Plan_TextBadIndent" xml:space="preserve">
-    <value>计划的缩进不一致 — 无法确定子节点的位置。</value>
+    <value>计划的缩进不一致，无法确定子节点的位置。</value>
     <comment>Error shown on the status line or in the Import Query Plan dialog: the pasted text plan's indentation does not show which node a line belongs under.</comment>
   </data>
   <data name="Plan_TextTooDeep" xml:space="preserve">
@@ -7400,11 +7400,11 @@
     <comment>Query Lab, Summary tab, the table of figures: name of a row, how many rows the query returned.</comment>
   </data>
   <data name="QueryLabCore_RowsEstimated" xml:space="preserve">
-    <value>估计的行数</value>
+    <value>预估的行数</value>
     <comment>Query Lab, Summary tab, the table of figures: name of a row, how many rows the planner expected.</comment>
   </data>
   <data name="QueryLabCore_EstimatedCost" xml:space="preserve">
-    <value>估计成本（规划器单位）</value>
+    <value>预估成本（规划器单位）</value>
     <comment>Query Lab, Summary tab, the table of figures: name of a row, the planner's cost estimate. Planner units are PostgreSQL's arbitrary cost units, not time.</comment>
   </data>
   <data name="QueryLabCore_SharedHit" xml:space="preserve">
@@ -7460,19 +7460,19 @@
     <comment>Query Lab, Summary tab, the table of figures: the Change column when a figure is the same on both sides.</comment>
   </data>
   <data name="QueryLabCore_EstimatesOnlyTitle" xml:space="preserve">
-    <value>仅估计值</value>
+    <value>仅预估值</value>
     <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading. Neither or one plan was run with ANALYZE.</comment>
   </data>
   <data name="QueryLabCore_EstimatesOnlyNeither" xml:space="preserve">
-    <value>两个计划都没有分析，因此没有时间、实际行数或缓冲区使用可供比较，只有规划器的估计值。估计成本以规划器单位计，不是时间。</value>
+    <value>两个计划都没有分析，因此没有时间、实际行数或缓冲区使用可供比较，只有规划器的预估值。预估成本以规划器单位计，不是时间。</value>
     <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Estimates only', when neither plan was run with ANALYZE.</comment>
   </data>
   <data name="QueryLabCore_EstimatesOnlyBefore" xml:space="preserve">
-    <value>“之前”的计划没有分析，因此那一侧没有时间、实际行数或缓冲区使用可供比较，只有规划器的估计值。估计成本以规划器单位计，不是时间。</value>
+    <value>“之前”的计划没有分析，因此那一侧没有时间、实际行数或缓冲区使用可供比较，只有规划器的预估值。预估成本以规划器单位计，不是时间。</value>
     <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Estimates only', when the before plan was not run with ANALYZE. 'Before' is the left side of the comparison.</comment>
   </data>
   <data name="QueryLabCore_EstimatesOnlyAfter" xml:space="preserve">
-    <value>“之后”的计划没有分析，因此那一侧没有时间、实际行数或缓冲区使用可供比较，只有规划器的估计值。估计成本以规划器单位计，不是时间。</value>
+    <value>“之后”的计划没有分析，因此那一侧没有时间、实际行数或缓冲区使用可供比较，只有规划器的预估值。预估成本以规划器单位计，不是时间。</value>
     <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Estimates only', when the after plan was not run with ANALYZE. 'After' is the right side of the comparison.</comment>
   </data>
   <data name="QueryLabCore_OneRunTitle" xml:space="preserve">
@@ -7540,7 +7540,7 @@
     <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading. Settings that scale the planner's costs differ.</comment>
   </data>
   <data name="QueryLabCore_CostScalesDetail" xml:space="preserve">
-    <value>影响规划器成本尺度的设置不同（{settings}），因此两侧的估计成本单位不同。</value>
+    <value>影响规划器成本尺度的设置不同（{settings}），因此两侧的预估成本单位不同。</value>
     <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Costs are on different scales'. {settings} is a list of PostgreSQL setting names, such as 'random_page_cost, seq_page_cost'.</comment>
   </data>
   <data name="QueryLabCore_SettingsUnknownTitle" xml:space="preserve">
@@ -7560,11 +7560,11 @@
     <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading. JIT is a PostgreSQL term; keep it.</comment>
   </data>
   <data name="QueryLabCore_JitBefore" xml:space="preserve">
-    <value>JIT 占用了“之前”运行的 {time}，并计入其执行时间。它在超过 jit_above_cost 时启动，因此估计值的变化可能会将其开启或关闭。</value>
+    <value>JIT 占用了“之前”运行的 {time}，并计入其执行时间。它在超过 jit_above_cost 时启动，因此预估值的变化可能会将其开启或关闭。</value>
     <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under the JIT heading. {time} is a duration such as '12.5 ms'. jit_above_cost is a PostgreSQL setting; keep it.</comment>
   </data>
   <data name="QueryLabCore_JitAfter" xml:space="preserve">
-    <value>JIT 占用了“之后”运行的 {time}，并计入其执行时间。它在超过 jit_above_cost 时启动，因此估计值的变化可能会将其开启或关闭。</value>
+    <value>JIT 占用了“之后”运行的 {time}，并计入其执行时间。它在超过 jit_above_cost 时启动，因此预估值的变化可能会将其开启或关闭。</value>
     <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under the JIT heading. {time} is a duration such as '12.5 ms'. jit_above_cost is a PostgreSQL setting; keep it.</comment>
   </data>
   <data name="QueryLabCore_ConnectionsTitle" xml:space="preserve">
@@ -7760,7 +7760,7 @@
     <comment>Crash window: heading.</comment>
   </data>
   <data name="Crash_Body" xml:space="preserve">
-    <value>应用程序遇到严重错误，必须关闭。你正在做的事情不一定丢失 — 请重新打开 pgNimbus 继续。</value>
+    <value>应用程序遇到严重错误，必须关闭。你正在做的事情不一定丢失，请重新打开 pgNimbus 继续。</value>
     <comment>Crash window: what happened and what to do next.</comment>
   </data>
   <data name="Crash_LogLabel" xml:space="preserve">
@@ -7768,7 +7768,7 @@
     <comment>Crash window: label above the path of the log file.</comment>
   </data>
   <data name="Crash_ReportHint" xml:space="preserve">
-    <value>请报告此问题以便修复 — 下方按钮会打开一个预填的 GitHub issue。附上上面的日志文件会很有帮助。</value>
+    <value>请报告此问题以便修复，下方按钮会打开一个预填的 GitHub issue。附上上面的日志文件会很有帮助。</value>
     <comment>Crash window: asks the user to report the crash. The GitHub issue it opens is in English on purpose.</comment>
   </data>
   <data name="Crash_OpenLog" xml:space="preserve">
@@ -7800,7 +7800,7 @@
     <comment>Error shown in the results pane and the status line when the connection dropped before a statement was sent and the one automatic reconnect failed too. Nothing ran. {detail} is the driver's or server's own message, in English, such as "Failed to connect to 127.0.0.1:5432".</comment>
   </data>
   <data name="Core_StagedRowIsDeleted" xml:space="preserve">
-    <value>此行已暂存为删除 — 请先再次按其上的 Delete 以取消暂存删除。</value>
+    <value>此行已暂存为删除，请先再次按其上的 Delete 以取消暂存删除。</value>
     <comment>Status line in safe mode: the user tried to edit a cell of a row already staged for deletion. "Delete" is the Delete key.</comment>
   </data>
   <data name="Core_ImportFileTooLarge" xml:space="preserve">
