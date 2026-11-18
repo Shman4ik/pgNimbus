@@ -149,7 +149,7 @@
   </data>
   <data name="Settings_LanguageSystem" xml:space="preserve">
     <value>系统（{language}）</value>
-    <comment>Settings, General tab: the first choice in the Language list, which follows the operating system. {language} is that language's name in itself, such as English or 简体中文.</comment>
+    <comment>Settings, General tab, and the connection dialog's language menu: the first choice in the Language list, which follows the operating system. {language} is that language's name in itself, such as English or 简体中文.</comment>
   </data>
   <data name="Settings_TabGeneral" xml:space="preserve">
     <value>常规</value>
@@ -634,6 +634,10 @@
   <data name="Connection_NewConnection" xml:space="preserve">
     <value>新建连接</value>
     <comment>Connection dialog: tooltip and accessible name of the + button under the list that starts a new saved connection.</comment>
+  </data>
+  <data name="Connection_LanguageTip" xml:space="preserve">
+    <value>界面语言</value>
+    <comment>Connection dialog: tooltip and accessible name of the button at the right end of the title bar that shows the interface language's name and opens the list of languages.</comment>
   </data>
   <data name="Connection_Test" xml:space="preserve">
     <value>测试</value>

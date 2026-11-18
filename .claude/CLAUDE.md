@@ -2936,8 +2936,9 @@ translator's side is [`docs/dev/translating.md`](../docs/dev/translating.md).
   `Platform/SystemLanguages` (Windows `GetUserPreferredUILanguages`, macOS
   `CFLocaleCopyPreferredLanguages`, POSIX variables), never from
   `CultureInfo`, which is invariant. `AppSettings.Language` is `"auto"` or a tag;
-  `Program.Main` loads it before the first window, Settings ▸ General changes it
-  live (`App.SetLanguage`). `PGNIMBUS_TRANSLATION_FILE` loads a `.resx` from
+  `Program.Main` loads it before the first window, Settings ▸ General and the
+  connection dialog's globe button change it live (`App.SetLanguage`, both from
+  `LanguageOption.All`). `PGNIMBUS_TRANSLATION_FILE` loads a `.resx` from
   disk instead, so a translator can try a file in a released build. The
   generator project removes `PublishAot`/`RuntimeIdentifier` from what a publish
   hands it (`TreatAsLocalProperty`): it is a netstandard2.0 compiler plug-in.

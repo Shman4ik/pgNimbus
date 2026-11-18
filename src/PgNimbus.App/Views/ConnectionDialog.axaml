@@ -56,7 +56,26 @@
     <Border Name="ConnectBar" Grid.Row="0" Height="40" Background="Transparent"
             chrome:WindowDecorationProperties.ElementRole="TitleBar"
             BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardBorderBrush}">
-        <TextBlock Name="BarHeading" Text="{l:Tr Connection_SavedConnections}" FontWeight="SemiBold" VerticalAlignment="Center" />
+        <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Name="BarHeading" Text="{l:Tr Connection_SavedConnections}" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <!-- The interface language, at the right end of the bar where the main
+                 window keeps its app-level buttons: this is the first window anyone
+                 sees, and someone who can't read it has to be able to change it
+                 here, not only in Settings behind a connection. Right, not left,
+                 so it stays clear of macOS's traffic lights; the chrome's padding
+                 keeps it clear of the drawn caption buttons on Windows. The menu is
+                 built as it opens (OnLanguageButtonClick), from Settings' list. -->
+            <Button Name="LanguageButton" Grid.Column="1" Classes="chip" Padding="6,4" VerticalAlignment="Center"
+                    chrome:WindowDecorationProperties.ElementRole="User"
+                    Click="OnLanguageButtonClick"
+                    ToolTip.Tip="{l:Tr Connection_LanguageTip}"
+                    AutomationProperties.Name="{l:Tr Connection_LanguageTip}">
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                    <PathIcon Data="{StaticResource GlobeIconGeometry}" Width="14" Height="14" VerticalAlignment="Center" />
+                    <TextBlock Name="LanguageButtonText" FontSize="12" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </Grid>
     </Border>
 
     <!-- The list and the form are one block, capped at 1000 x 760, centred

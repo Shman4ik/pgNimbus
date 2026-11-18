@@ -52,7 +52,16 @@ paths:
   under an OS caption reading "pgNimbus — Connect" beside the app icon, so the
   first thing anyone saw was the one window that did not look like the app.
   `ConnectionDialog` attaches `NimbusWindowChrome` to its own 40px `ConnectBar`,
-  which carries only the "Saved connections" heading over the list. The
+  which carries the "Saved connections" heading over the list and, at its right
+  end, the interface language (`LanguageButton`, 2026-11, the owner's call): a
+  globe `chip` naming the language on screen in itself, opening Settings' list
+  ("System (…)" first, then each language; `LanguageOption.All`) as a menu built
+  per opening. A choice is applied and saved at once (`App.SetLanguage`), so the
+  main window opens in it and Settings shows it. It is here because this is the
+  first window, and someone who can't read it must not need Settings, which is
+  behind a connection, to change it. Right, not left: the traffic lights sit on
+  the left on macOS, and the chrome's padding keeps it clear of the drawn
+  caption buttons on Windows (`ConnectionLanguageTests`). The
   connection-string box stays at the top of the form: it was tried in the bar,
   where the main window keeps its search pill, and the owner rejected it on
   sight. The window `Title` stays set for the taskbar and Alt+Tab. The modal
