@@ -1,0 +1,275 @@
+name: Translation review
+
+# Puts every screen, in every language, on the pull request (#435). Two jobs:
+#
+#   render   read-only. Builds, renders every screenshot scenario in English and
+#            in each Strings.<tag>.resx (light theme), and runs the fit test
+#            (TranslationFitTests: text that fits in English and not in the
+#            language). Uploads both as a one-day artifact.
+#   publish  only for a pull request from this repository, never a fork. Puts the
+#            images on the orphan branch `l10n-review` under
+#            pr-<number>/<lang>/<scenario>.png and keeps one comment on the PR up
+#            to date with them. It runs no code from the pull request: only gh and
+#            git, with the token it needs to push and comment.
+#
+# The branch is one commit, force-pushed on every run, holding only the open
+# PRs' directories: a closed PR's directory goes at its `closed` event or at the
+# next run of any PR. .claude/rules/headless-tests.md, "Translation review".
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    paths:
+      - "src/PgNimbus.Core/Localization/**"
+      - "src/PgNimbus.App/**/*.axaml"
+      - "tools/Screenshot/**"
+      - "scripts/screenshots/render-languages.sh"
+      - ".github/workflows/l10n-review.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push supersedes a run still rendering for the same branch.
+concurrency:
+  group: l10n-review-${{ github.event.pull_request.head.ref || github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  AVALONIA_TELEMETRY_OPTOUT: "1"
+
+jobs:
+  render:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    # Six languages: about a minute of rendering and a minute of fit test each.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: "11.0.x"
+
+      # The runner has no CJK font, and Chinese would render as boxes.
+      - name: Install fonts
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q fonts-noto-cjk
+
+      - name: Build (Release)
+        run: dotnet build tests/PgNimbus.App.Tests -c Release
+
+      - name: Render every scenario in every language
+        env:
+          PGNIMBUS_RENDER_NO_BUILD: "1"
+        run: bash scripts/screenshots/render-languages.sh "$RUNNER_TEMP/l10n/images"
+
+      # Report-only: it fails only when it compared nothing.
+      - name: Fit test
+        env:
+          PGNIMBUS_FIT_REPORT: ${{ runner.temp }}/l10n/fit-report.md
+        run: >
+          dotnet run --project tests/PgNimbus.App.Tests -c Release --no-build --
+          --treenode-filter "/*/*/TranslationFitTests/*"
+
+      - name: Job summary
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/l10n/fit-report.md" ]; then
+            cat "$RUNNER_TEMP/l10n/fit-report.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # A hand-off to the publish job, and something to download on a
+      # workflow_dispatch run. One day: it is looked at on the PR or not at all.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: l10n-review
+          path: ${{ runner.temp }}/l10n
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: render
+    # Same-repository PRs only: a fork's run gets no write token anyway, and its
+    # images are in the artifact. A closed PR only has its directory removed.
+    if: >-
+      always()
+      && github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && (needs.render.result == 'success' || github.event.action == 'closed')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    # One writer of the branch at a time, across all PRs. Never cancelled: a run
+    # half way through a push must finish. (GitHub keeps one run pending per
+    # group, so a third run arriving replaces the waiting one; that PR gets its
+    # images on its next push. The push below also refuses to overwrite a
+    # branch that moved since it was read.)
+    concurrency:
+      group: l10n-review-branch
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      PR: ${{ github.event.pull_request.number }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      ACTION: ${{ github.event.action }}
+      RUN_ID: ${{ github.run_id }}
+      SERVER_URL: ${{ github.server_url }}
+    steps:
+      - name: Download the render
+        if: github.event.action != 'closed'
+        run: gh run download "$RUN_ID" --repo "$REPO" --name l10n-review --dir "$RUNNER_TEMP/l10n"
+
+      - name: Update the l10n-review branch
+        run: |
+          set -euo pipefail
+          branch=l10n-review
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git_auth() { git -c "http.https://github.com/.extraheader=$auth" "$@"; }
+
+          work="$RUNNER_TEMP/branch"
+          rm -rf "$work"
+          git init -q "$work"
+          cd "$work"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "https://github.com/$REPO.git"
+
+          open=$(gh pr list --repo "$REPO" --state open --limit 1000 --json number --jq '.[].number')
+
+          for attempt in 1 2 3 4 5; do
+            # The branch as it is now (it may not exist yet).
+            old=""
+            if git_auth fetch -q --depth=1 origin "+refs/heads/$branch:refs/remotes/origin/$branch" 2>/dev/null; then
+              old=$(git rev-parse "refs/remotes/origin/$branch")
+              git checkout -q -f --detach "$old"
+              git clean -fdxq
+            else
+              find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+            fi
+
+            # Keep only the directories of open PRs, and replace this PR's.
+            for dir in pr-*; do
+              [ -d "$dir" ] || continue
+              number=${dir#pr-}
+              if [ "$number" = "$PR" ] || ! grep -qx "$number" <<< "$open"; then
+                rm -rf "$dir"
+              fi
+            done
+            if [ "$ACTION" != "closed" ]; then
+              mkdir -p "pr-$PR"
+              cp -R "$RUNNER_TEMP/l10n/images/." "pr-$PR/"
+              if [ -f "$RUNNER_TEMP/l10n/fit-report.md" ]; then
+                cp "$RUNNER_TEMP/l10n/fit-report.md" "pr-$PR/fit-report.md"
+              fi
+            fi
+            printf '%s\n' \
+              "Screenshots for the translation review (.github/workflows/l10n-review.yml)." \
+              "One directory per open pull request, rewritten as a single commit on every run." \
+              "Nothing here is reviewed or kept." > README.md
+
+            # A fresh single commit: no history, so the branch never grows.
+            git checkout -q --orphan "next-$attempt"
+            git add -A
+            git commit -q -m "Translation review screenshots for open pull requests"
+            if git_auth push -q --force-with-lease="refs/heads/$branch:$old" origin "HEAD:refs/heads/$branch"; then
+              echo "Pushed $branch ($(git rev-parse --short HEAD))"
+              exit 0
+            fi
+            echo "The branch moved; reading it again ($attempt)"
+            sleep $((attempt * 5))
+          done
+          echo "Could not update $branch" >&2
+          exit 1
+
+      - name: Comment on the pull request
+        run: |
+          set -euo pipefail
+          marker="<!-- pgnimbus-l10n-review -->"
+          body="$RUNNER_TEMP/comment.md"
+
+          if [ "$ACTION" = "closed" ]; then
+            printf '%s\n%s\n' "$marker" "The translation review screenshots were removed: this pull request is closed." > "$body"
+          else
+            python3 - "$RUNNER_TEMP/l10n" "$body" <<'PY'
+          import os, sys
+          from pathlib import Path
+
+          root, out = Path(sys.argv[1]), Path(sys.argv[2])
+          repo, pr, sha = os.environ["REPO"], os.environ["PR"], os.environ["HEAD_SHA"]
+          server = os.environ["SERVER_URL"]
+          raw = f"https://raw.githubusercontent.com/{repo}/l10n-review/pr-{pr}"
+          tree = f"{server}/{repo}/tree/l10n-review/pr-{pr}"
+          limit = 65000  # GitHub refuses a comment over 65,536 characters.
+
+          parts = [
+              "<!-- pgnimbus-l10n-review -->",
+              "## Every screen in every language",
+              "",
+              f"Rendered from {sha[:7]}, light theme, with the screenshot harness's fixtures. "
+              "English is first for comparison. The images live on the "
+              f"[`l10n-review`]({tree}) branch while this pull request is open.",
+              "",
+          ]
+
+          report = root / "fit-report.md"
+          if report.exists():
+              text = report.read_text(encoding="utf-8")
+              lines = text.splitlines()
+              # The summary (heading, counts and the per-language table) goes on top;
+              # the per-language findings go in a collapsed block.
+              cut = next((i for i, l in enumerate(lines) if l.startswith("### ")), len(lines))
+              parts += [l.replace("## ", "### ", 1) if l.startswith("## ") else l for l in lines[:cut]]
+              details = "\n".join(lines[cut:]).strip()
+              if details:
+                  if len(details) > 20000:
+                      details = details[:20000] + "\n\n... cut here; the whole report is in the run's artifact and on the branch."
+                  parts += ["", "<details><summary>Findings</summary>", "", details, "", "</details>"]
+          else:
+              parts += ["The fit test wrote no report."]
+          parts.append("")
+
+          images = root / "images"
+          languages = sorted((d for d in images.iterdir() if d.is_dir()), key=lambda d: (d.name != "en", d.name))
+          head = "\n".join(parts)
+          sections = []
+          for lang in languages:
+              pngs = sorted(lang.glob("*.png"))
+              block = [f"<details><summary><b>{lang.name}</b> ({len(pngs)} screens)</summary>", ""]
+              for png in pngs:
+                  # No alt text: the caption names it, and ~68 screens x 6 languages
+                  # have to fit in one comment.
+                  block += [f"**{png.stem}**", f"![]({raw}/{lang.name}/{png.name}?{sha[:7]})", ""]
+              block += ["</details>", ""]
+              sections.append((lang.name, len(pngs), "\n".join(block)))
+
+          body, left = head, []
+          for name, count, block in sections:
+              if len(body) + len(block) + 2000 < limit:
+                  body += "\n" + block
+              else:
+                  left.append((name, count))
+          if left:
+              body += "\nThese did not fit in one comment; open them on the branch:\n\n"
+              body += "\n".join(f"- [{name}]({tree}/{name}) ({count} screens)" for name, count in left) + "\n"
+          out.write_text(body, encoding="utf-8")
+          PY
+          fi
+
+          id=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -n1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$id" -F "body=@$body" > /dev/null
+            echo "Updated comment $id"
+          elif [ "$ACTION" != "closed" ]; then
+            gh api -X POST "repos/$REPO/issues/$PR/comments" -F "body=@$body" > /dev/null
+            echo "Added a comment"
+          fi

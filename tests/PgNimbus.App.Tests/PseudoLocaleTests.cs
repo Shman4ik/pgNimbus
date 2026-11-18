@@ -28,7 +28,7 @@ public partial class PseudoLocaleTests
     /// that is checked: an overlay scenario shows the main window behind it, which
     /// has its own entry. Null checks the whole window.
     /// </summary>
-    private static readonly Dictionary<string, Type?> Converted = new()
+    internal static readonly Dictionary<string, Type?> Converted = new()
     {
         ["about-window"] = typeof(Views.AboutView),
         ["preferences-window"] = typeof(Views.PreferencesView),
@@ -104,7 +104,7 @@ public partial class PseudoLocaleTests
     /// Scenarios left out of the scan: the controls gallery is a developer's page of
     /// sample controls with made-up labels, built by the harness, not a screen of the app.
     /// </summary>
-    private static readonly HashSet<string> NotScanned = ["controls-gallery"];
+    internal static readonly HashSet<string> NotScanned = ["controls-gallery"];
 
     [Test]
     public async Task Every_scenario_is_scanned()
@@ -458,7 +458,7 @@ public partial class PseudoLocaleTests
     /// text or as the tree's nodes), a JSON value's tree, and completion items (catalog
     /// names and SQL words).
     /// </summary>
-    private static bool IsData(Control control) =>
+    internal static bool IsData(Control control) =>
         control.GetVisualAncestors().Any(a => a is DataGridCell or DataGridColumnHeader or AvaloniaEdit.TextEditor or TextPresenter or Views.ReadOnlyTextView)
         || control is TextPresenter
         || control is Completion.CompletionLabel
