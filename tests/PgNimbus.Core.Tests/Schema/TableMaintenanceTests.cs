@@ -181,8 +181,8 @@ public class TableMaintenanceTests
             await Assert.That(await StatSetAsync(dataSource, "last_analyze", schema, table)).IsTrue();
             await Assert.That(await StatSetAsync(dataSource, "last_vacuum", schema, table)).IsTrue();
             await Assert.That(await ScalarAsync(dataSource,
-                $"SELECT last_analyze IS NULL AND last_vacuum IS NULL FROM pg_stat_user_tables WHERE schemaname = 'public' AND relname = {SqlLiteral.Quote(table)}"))
-                .IsEqualTo(true);
+                $"SELECT last_analyze IS NULL AND last_vacuum IS NULL FROM pg_stat_user_tables WHERE schemaname = 'public' AND relname = {SqlLiteral.Quote(table)}") is true)
+                .IsTrue();
 
             await editor.RunMaintenanceAsync(TableMaintenance.Truncate(schema, table), CancellationToken.None);
             await Assert.That(await CountAsync(dataSource, schema, table)).IsEqualTo(0L);
