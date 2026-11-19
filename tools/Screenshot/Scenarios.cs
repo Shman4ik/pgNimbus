@@ -730,7 +730,7 @@ public static class Scenarios
         }
 
         vm.HasLockWaits = true;
-        vm.Status = $"{vm.Rows.Count} backends · 09:41:02";
+        vm.Status = Strings.Monitoring_ActivityBackends(vm.Rows.Count) + " · 09:41:02";
         vm.BlockingStatus = "2 backends waiting on locks · 09:41:02";
         vm.AutoRefresh = false;
         vm.SelectedTab = tab;
@@ -764,7 +764,8 @@ public static class Scenarios
             vm.UnusedIndexes.Add(new UnusedIndexRow(index));
         }
 
-        vm.Status = "6 relations · 3 unused indexes wasting 68 MB · 09:41:02";
+        vm.Status = Strings.Monitoring_OverviewRelations(6) + " · "
+            + Strings.Monitoring_OverviewUnusedIndexesWasting(3, "68 MB") + " · 09:41:02";
         return new DatabaseOverviewWindow { DataContext = vm, Width = 1100, Height = 760 };
     }
 

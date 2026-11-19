@@ -68,3 +68,15 @@ place automatically, and you can force either scheme in Settings, under Shortcut
 modifier on the General tab. The one exception is autocomplete, which stays on
 <kbd>Ctrl</kbd>+<kbd>Space</kbd> everywhere, because
 <kbd>Cmd</kbd>+<kbd>Space</kbd> is Spotlight on macOS.
+
+## Interface language
+
+pgNimbus speaks English, Russian, Simplified Chinese, German, French and
+Spanish. On first launch it follows the operating system's language when it
+has that language, and English otherwise. To change it, use the language button
+at the right end of the connection window's bar, or **Language** in Settings, on
+the General tab. The new language takes over at once, with no restart.
+
+Only the app's own text changes: menus, dialogs and messages. SQL keywords,
+messages from the server and your data stay as they are, and a string that has
+no translation yet shows in English.

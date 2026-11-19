@@ -155,7 +155,9 @@ interface font. Also on the release pass: the Linux packages' font dependency
 4. **Screenshots stay English**: the harness and the UI tests never call
    `Localizer.Load` with anything but English (and the pseudo test), so the
    baselines and published screenshots don't change. The harness's `--language`
-   renders a translation for review and refuses `--baseline` and `--publish`.
+   renders a translation for review and refuses `--baseline`; with `--publish` it
+   writes only the Store listing's set, to `design/store/screenshots/<tag>/`
+   (1.4.0: zh-Hans, for the Chinese listing).
 
 ## Verified so far
 
