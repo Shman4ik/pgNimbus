@@ -67,16 +67,38 @@ internal static class Marketing
         new("backup-window.dark.png", "design/store/screenshots/08-backup.dark.png", StoreMinimum),
     ];
 
+    /// <summary>Where the Store listing's screenshots live; a translated set is a folder in it.</summary>
+    private const string StoreScreenshots = "design/store/screenshots/";
+
     /// <summary>
     /// Copies every published image out of a completed render into the repo.
     /// Fails rather than skipping when a source is missing: a partial publish
     /// would leave some assets refreshed and others stale, which is worse than
     /// not publishing at all.
+    ///
+    /// With a <paramref name="language"/> only the Store listing's set is
+    /// written, to <c>design/store/screenshots/&lt;language&gt;/</c> under the
+    /// same names: Partner Center wants screenshots for every listing language,
+    /// and the README and the docs are English.
     /// </summary>
-    public static void Publish(string renderedDir, string repoRoot)
+    public static void Publish(string renderedDir, string repoRoot, string? language = null)
     {
-        foreach (var image in All)
+        foreach (var published in All)
         {
+            var image = published;
+            if (language is not null)
+            {
+                if (!image.Destination.StartsWith(StoreScreenshots, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                image = image with
+                {
+                    Destination = StoreScreenshots + language + "/" + image.Destination[StoreScreenshots.Length..],
+                };
+            }
+
             var source = Path.Combine(renderedDir, image.Source);
             if (!File.Exists(source))
             {
@@ -87,6 +109,7 @@ internal static class Marketing
             }
 
             var destination = Path.Combine(repoRoot, image.Destination);
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
             var pixels = Png.Read(source);
 
             if (image.MinimumSize is { } minimum &&

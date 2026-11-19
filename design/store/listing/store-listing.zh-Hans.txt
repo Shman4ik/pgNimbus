@@ -1,0 +1,92 @@
+pgNimbus Microsoft Store listing, Chinese (Simplified), zh-Hans
+For version 1.4.0. Prepared 2026-11-19 from the English listing
+(store-listing.txt); already entered in the draft submission in Partner Center.
+Terms follow the app's own Strings.zh-Hans.resx (命令面板, 安全模式, 暂存,
+模式树, Query Lab kept in English). Worth a read by a native speaker.
+
+Store listings > Chinese (Simplified). Same limits as the English file.
+Product name: pgNimbus. Screenshots: design/store/screenshots/zh-Hans/, the
+English set rendered with the Chinese interface (Marketing.Publish with
+--language). Copyright and "Developed by" as in English.
+
+===== DESCRIPTION =====
+pgNimbus 是一款适用于 Windows 的快速、免费的 PostgreSQL（Postgres）图形客户端和 SQL 编辑器。它大约 0.2 秒即可启动，查询还在运行时就开始显示行，并且只会把你的数据发送到你所连接的服务器。它以 MIT 许可证开源，无需账号，没有遥测，也没有云端。
+
+更快写出 SQL，更早看到结果
+
+查询运行时，结果会实时流入网格，按 Esc 即可在服务器上停止查询。自动补全像 PostgreSQL 一样理解 SQL：它会沿 search_path 以及在子查询和 CTE 内部解析名称，为每个外键提供一个 JOIN ... ON 条件，并能补全 ORDER BY、LEFT JOIN 这样的整个短语。脚本中的每条语句都有各自的结果分区。重启后，你的标签页（包括未保存的）会原样恢复，Ctrl+Shift+T 可重新打开刚关闭的标签页。
+
+应用更改之前先审阅
+
+无需编写 SQL 即可浏览任意表，排序、分页和筛选都在服务器上执行。你可以跟随外键跳转，用适合枚举、日期、数组和 JSON 的编辑器修改单元格，也可以把一行作为表单打开。
+
+安全模式会暂存编辑、插入和删除，并显示确切的 SQL。所有更改作为一个事务一并提交。提交前，每个暂存的行都会在加锁状态下重新读取；如果其他会话已修改它，则不会写入任何内容，你会看到旧值、当前值和拟写入的值。
+
+看懂慢查询
+
+EXPLAIN 和 EXPLAIN ANALYZE 以树形展示，带有自身耗时的热力图，并用通俗的警告指出磁盘溢出和行数估算偏差。你可以粘贴来自任何地方的执行计划，无需连接即可阅读。在 Query Lab 中对比计划：保存一个计划，添加索引后再次 EXPLAIN，即可并排查看时间、行数、成本和缓冲区，并通过一棵合并的树把每个节点标记为相同、已更改、已添加或已移除。慢查询列出 pg_stat_statements 中最耗资源的语句，而且不会重置你的统计信息。
+
+了解服务器正在做什么
+
+服务器活动窗口可取消或终止会话，锁树则显示谁在阻塞谁。数据库概览列出最大的关系、未使用的索引、扫描类型和缓存命中率。角色视图使用服务器自身的权限检查来回答“这个角色能不能做这件事，为什么”，所有更改都会生成脚本，而不是在你不知情时直接应用。LISTEN/NOTIFY 监视器会把 JSON 负载显示为树。
+
+谨慎连接
+
+可粘贴任意格式的连接字符串：postgres:// URI、JDBC URL、libpq 关键字，甚至整条 psql 命令。为每个连接配置选择一种强调色，让生产环境永远不会和预发布环境混淆。可将连接标记为开发、预发布或生产；生产窗口打开时默认禁止写入，由服务器强制执行，直到你在该窗口中允许写入。把配置标记为只读后，服务器本身会拒绝所有写入。SSH 隧道可使用 SSH 代理、密钥文件或密码登录，并会对照 known_hosts 校验主机密钥。TLS 最高支持 Verify full（含通过隧道连接），需要时可使用你自己的根证书。密码由 Windows DPAPI 加密，与连接配置分开存放。
+
+备份与还原
+
+使用 PostgreSQL 自带的 pg_dump 备份整个数据库、某个模式或单个表，可保存为归档文件或可读的 .sql 脚本。pgNimbus 会找到 PostgreSQL 或 pgAdmin 已安装的 pg_dump 和 pg_restore，不会下载任何内容。如果没有一个适合你的服务器，它会告诉你需要安装哪个版本以及如何安装。密码绝不会出现在命令行中。还原前会先显示归档包含的内容，还原要么全部成功要么全部不做，并且默认还原到新数据库，除非你选择当前数据库。
+
+导入与导出
+
+通过 COPY 导入 CSV 和 JSON。可将表或查询结果导出为 CSV、JSON、Markdown 或 INSERT 语句。导出会写入每一行，而不只是屏幕上的当前页，并且可以随时取消。
+
+免费且注重隐私
+
+pgNimbus 采用 MIT 许可证，使用 .NET 和 Avalonia 构建，是 NativeAOT 应用，而不是 Electron。它没有遥测，没有自动崩溃报告，也无需账号。Ctrl+K 打开命令面板，可跳转到所有表和命令，F1 列出全部快捷键，并提供浅色和深色主题。界面支持英语、俄语、简体中文、德语、法语和西班牙语。
+
+需要能够访问 PostgreSQL 服务器。
+===== END DESCRIPTION =====
+
+===== WHAT'S NEW IN THIS VERSION =====
+pgNimbus 现已支持俄语、简体中文、德语、法语和西班牙语。你可以在连接窗口或设置中选择语言，立即生效，无需重启。
+其他新增：可在模式树中打开索引或触发器的源码；支持客户端证书，以及每个连接各自的语句超时和锁超时；语句执行失败时，编辑器中会标出出错的位置；表上新增“维护”子菜单；可在标题栏切换到服务器上的其他数据库；支持 PostgreSQL 12 和 13。关闭窗口时，如果有暂存的更改、未结束的事务或正在运行的查询，现在会先询问。
+===== END WHAT'S NEW =====
+
+===== PRODUCT FEATURES (one line per box, 20 boxes) =====
+免费开源（MIT）。约 0.2 秒启动。无需账号，无遥测，无云端
+查询运行时结果实时流入网格，按 Esc 在服务器上取消
+像 PostgreSQL 一样理解 SQL 的自动补全：search_path、子查询、CTE，每个外键一个 JOIN ... ON
+安全模式：暂存编辑、插入和删除，审阅确切的 SQL，带冲突检查地作为一个事务提交
+无需 SQL 即可浏览表：排序、分页和筛选标签在服务器上执行。可跟随外键跳转
+为枚举、布尔、日期、数组和 JSON 列提供专用编辑器，另有行详情表单
+EXPLAIN 和 EXPLAIN ANALYZE 以树形展示，带自身耗时热力图和通俗警告
+Query Lab：保存 EXPLAIN 计划并逐节点对比任意两个，查看更改前后的差异
+来自 pg_stat_statements 的慢查询，按总耗时或平均耗时排序，不会重置统计信息
+角色和权限：查看角色为什么能或不能做某事，并以脚本形式获得更改
+服务器活动：取消、终止，以及谁在阻塞谁的锁树，另有 LISTEN/NOTIFY 监视器
+数据库概览：最大的关系、未使用的索引、扫描类型、缓存命中率
+使用 PostgreSQL 自带的 pg_dump 和 pg_restore 备份和还原数据库、模式或表
+把连接标记为生产，则打开时禁止写入。标记为只读，服务器会拒绝所有写入
+SSH 隧道支持代理、密钥或密码登录，并对照 known_hosts 校验主机密钥
+TLS 最高支持 Verify full，可用自己的根证书，密码由 Windows DPAPI 加密
+导出会把每一行写成 CSV、JSON、Markdown 或 INSERT 语句。通过 COPY 导入 CSV 和 JSON
+命令面板（Ctrl+K）、F1 快捷键速查表、浅色和深色主题
+标签页（包括未保存的）在重启后恢复。Ctrl+Shift+T 重新打开已关闭的标签页
+可粘贴任意格式的连接字符串，包括整条 psql 命令
+===== END PRODUCT FEATURES =====
+
+===== SHORT DESCRIPTION =====
+适用于 Windows 的快速、免费、开源的 PostgreSQL（Postgres）图形客户端和 SQL 编辑器。约 0.2 秒启动，查询运行时即时显示结果，数据只发送到你所连接的服务器。安全模式、计划对比、备份与还原，无遥测。
+===== END SHORT DESCRIPTION =====
+
+===== SEARCH TERMS =====
+PostgreSQL 客户端
+PostgreSQL GUI
+SQL 编辑器
+SQL 客户端
+数据库客户端
+postgres
+数据库管理
+===== END SEARCH TERMS =====

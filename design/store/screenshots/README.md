@@ -28,4 +28,11 @@ rule 9):
 scripts/screenshots/update-published.sh
 ```
 
+A listing in another language gets the same set rendered with that interface language, in a
+folder named after it (`zh-Hans/` for the Simplified Chinese listing):
+
+```bash
+dotnet run --project tools/Screenshot -c Release -- <scratch-dir> --language zh-Hans --publish .
+```
+
 Uploading them to Partner Center is a manual step; nothing in the release workflow does it.

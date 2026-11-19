@@ -70,8 +70,9 @@ for (var i = 0; i < args.Length; i++)
 
         // Renders in another language: a built-in tag (qps-ploc for the
         // pseudo-locale) or a translation file, for checking that text fits and
-        // that its script draws. Never with --baseline or --publish: those are
-        // English (docs/dev/translating.md).
+        // that its script draws. Never with --baseline: baselines are English
+        // (docs/dev/translating.md). With --publish it writes only the Store
+        // listing's set, into a folder of that language (Marketing.Publish).
         case "--language":
             if (++i >= args.Length)
             {
@@ -104,9 +105,9 @@ var outDir = positional.Count > 0 ? positional[0] : "screenshots";
 var filter = positional.Count > 1 ? positional[1] : null;
 Directory.CreateDirectory(outDir);
 
-if (language is not null && (baselineDir is not null || publishRoot is not null))
+if (language is not null && baselineDir is not null)
 {
-    Console.Error.WriteLine("--language renders a translation; baselines and published screenshots are English.");
+    Console.Error.WriteLine("--language renders a translation; baselines are English.");
     return 2;
 }
 
@@ -123,9 +124,8 @@ if (language is not null)
     if (File.Exists(language))
     {
         using var stream = File.OpenRead(language);
-        var tag = Path.GetFileNameWithoutExtension(language);
         PgNimbus.Core.Localization.Localizer.LoadTable(
-            tag.StartsWith("Strings.", StringComparison.OrdinalIgnoreCase) ? tag["Strings.".Length..] : tag,
+            LanguageTag(language),
             PgNimbus.Core.Localization.Localizer.Read(stream));
     }
     else
@@ -163,7 +163,7 @@ if (publishRoot is not null)
     }
 
     Console.WriteLine();
-    Marketing.Publish(outDir, publishRoot);
+    Marketing.Publish(outDir, publishRoot, language is null ? null : LanguageTag(language));
 }
 
 if (baselineDir is not null)
@@ -260,3 +260,15 @@ static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
     .WithInterFont()
     .WithNimbusFonts()
     .WithLanguageFonts();
+
+// "zh-Hans" for a tag or for a translation file named Strings.zh-Hans.resx.
+static string LanguageTag(string language)
+{
+    if (!File.Exists(language))
+    {
+        return language;
+    }
+
+    var tag = Path.GetFileNameWithoutExtension(language);
+    return tag.StartsWith("Strings.", StringComparison.OrdinalIgnoreCase) ? tag["Strings.".Length..] : tag;
+}

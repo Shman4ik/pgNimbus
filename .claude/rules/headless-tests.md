@@ -23,8 +23,10 @@ dotnet run --project tools/Screenshot -- <outputDir> [scenario-substring]
 
 Pass a scratch directory — nothing it writes is committed. `--language <tag or
 Strings.<tag>.resx>` renders in a translation (`qps-ploc` is the pseudo-locale),
-to check that text fits and its script draws; it refuses `--baseline` and
-`--publish`, which are English (CLAUDE.md, "Localization"). `--theme light|dark`
+to check that text fits and its script draws; it refuses `--baseline`, which
+is English (CLAUDE.md, "Localization"). With `--publish` it writes the Store
+listing's screenshots alone, into `design/store/screenshots/<tag>/` (the
+Store wants screenshots per listing language; the README and docs stay English). `--theme light|dark`
 renders one theme (also refused with those two, which need both). Omit the filter to
 render every scenario in `Scenarios.All` (the single list: `Program` walks it,
 the baseline set is exactly its names × {light,dark}, and `Marketing` picks its

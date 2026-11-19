@@ -1,25 +1,17 @@
 pgNimbus Microsoft Store listing, English (United States)
-For version 1.3.0. Prepared 2026-11-07 from the live listing of 2026-10-20 (1.2.1).
+For version 1.4.0. Prepared 2026-11-19; already entered in the draft submission
+in Partner Center. The Simplified Chinese listing is store-listing.zh-Hans.txt.
 
-Paste each field below into Partner Center > pgNimbus > the 1.3.0 submission >
+Paste each field below into Partner Center > pgNimbus > the submission >
 Store listings > English. Copy only the text between the ===== lines, not the
 lines themselves. Partner Center limits: Description 10,000 characters, What's
 new 1,500, Product features up to 20 lines of 200 characters each (one feature
 per box, no bullets of your own).
 
-What changed against the live listing:
-- Description: a "Compare plans in Query Lab" sentence under "Understand slow
-  queries", a new "Back up and restore" section before "Import and export",
-  and one sentence on environments in "Connect with care" (1.2.1 shipped them,
-  but the listing never said so).
-- Product features: new lines for Query Lab, backup and restore, and
-  environments. To stay at 20, the LISTEN/NOTIFY monitor moved into the
-  server activity line, and read-only connections share the environments line.
-- What's new: rewritten for 1.3.0.
-- Screenshots: 07-query-lab.light.png and 08-backup.dark.png are new in
-  design/store/screenshots/. 05-server-activity.light.png and
-  06-database-overview.dark.png were re-rendered in #406 and #408; upload
-  them too if the listing still has the older ones.
+What changed against the 1.3.0 listing:
+- Description: "Free and private" ends with the six interface languages.
+- What's new: rewritten for 1.4.0.
+- Product features: unchanged; all 20 boxes are in use.
 
 ===== DESCRIPTION =====
 pgNimbus is a fast, free PostgreSQL (Postgres) GUI client and SQL editor for Windows. It opens in about 0.2 seconds, shows rows while a query is still running, and sends your data nowhere except the servers you connect to. It is open source under the MIT license, with no account, no telemetry and no cloud.
@@ -56,21 +48,14 @@ Import CSV and JSON through COPY. Export a table or a query result as CSV, JSON,
 
 Free and private
 
-pgNimbus is MIT licensed and built with .NET and Avalonia as a NativeAOT app, not Electron. It has no telemetry, no automatic crash reports and no account. Ctrl+K opens a command palette for every table and command, F1 lists all shortcuts, and there are light and dark themes.
+pgNimbus is MIT licensed and built with .NET and Avalonia as a NativeAOT app, not Electron. It has no telemetry, no automatic crash reports and no account. Ctrl+K opens a command palette for every table and command, F1 lists all shortcuts, and there are light and dark themes. The interface is available in English, Russian, Simplified Chinese, German, French and Spanish.
 
 Requires access to a PostgreSQL server.
 ===== END DESCRIPTION =====
 
 ===== WHAT'S NEW IN THIS VERSION =====
-pgNimbus 1.3.0 adds Query Lab. Your connections, queries and settings carry over.
-
-• Query Lab saves EXPLAIN plans and compares any two of them, for example the same query before and after you add an index. Start from the Compare menu on the plan header, or open Query Lab from the command palette (Ctrl+K).
-• The Summary tab puts time, rows, estimated cost and buffers side by side. A missing figure says why it is missing, and notes say what two single runs cannot show, such as a warm cache.
-• The Plan changes tab merges both plans into one tree and marks each node Same, Changed, Added or Removed.
-• Query Lab needs no connection and runs nothing. Import Plan adds a plan you paste, as JSON or text.
-• Windows on Arm PCs now get a native Arm build instead of the x64 one under emulation.
-
-Improved: Pasted text plans get the Buffers color metric and the warnings for disk spills and lossy bitmap scans. In parallel plans, the heat bars divide a node's time among the leader and the workers. Buttons are the same height as the fields beside them. Updated to Avalonia 12.1.5 and the latest stable packages.
+pgNimbus now speaks Russian, Simplified Chinese, German, French and Spanish. Choose the language in the connection window or in Settings, and it changes at once, without a restart.
+Also new: open the source of an index or a trigger from the schema tree; client certificates and per-connection statement and lock timeouts; a marker in the editor where a failed statement went wrong; a Maintenance submenu on tables; switch to another database of the server from the title bar; PostgreSQL 12 and 13 are supported. Closing a window now asks before it loses staged changes, an open transaction or a running query.
 ===== END WHAT'S NEW =====
 
 ===== PRODUCT FEATURES (one line per box, 20 boxes) =====
