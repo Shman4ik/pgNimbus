@@ -241,7 +241,11 @@ It produces, per tag:
   case-sensitive), so 130 MB of symbols shipped in every `.dmg` (189 MB installed
   instead of 58). It now removes `*.dSYM` and `*.pdb` with `find -iname`. The
   Info.plist's `LSMinimumSystemVersion` said 11.0 for a binary whose `minos` is 12.0,
-  so macOS 11 failed in dyld instead of showing "requires macOS 12"; it is 12.0 now.
+  so macOS 11 failed in dyld instead of showing "requires macOS 12"; it was 12.0 then.
+  **.NET 11 raised the floor to macOS 14** (2026-11, #426): the binaries' `minos` is
+  14.0 and the plist stayed at 12.0 until the 1.4.0 rehearsal's mounted-`.dmg` check
+  refused it. It is 14.0 now, and the README, the install guide and the landing page
+  say macOS 14. The next .NET major may move it again; the check will say so.
   The mounted-`.dmg` step gates both (no `*.dsym`/`*.pdb` anywhere in the `.app`;
   the plist value not older than the highest `vtool -show-build` `minos` of any
   Mach-O), and `MacOSEntitlementsTests` keeps the template from going under 12.

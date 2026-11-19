@@ -22,9 +22,10 @@
     <string>6.0</string>
     <key>LSMinimumSystemVersion</key>
     <!-- Not lower than the highest minos of any Mach-O in the bundle: the NativeAOT
-         binary is built for macOS 12 (.NET 10's floor). 11.0 here made a macOS 11 Mac
-         fail in dyld instead of showing "requires macOS 12". release.yml checks it. -->
-    <string>12.0</string>
+         binary is built for macOS 14 (.NET 11's floor; it was 12 under .NET 10). A
+         lower value here makes an older Mac fail in dyld instead of showing "requires
+         macOS 14". release.yml checks it. -->
+    <string>14.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSHumanReadableCopyright</key>
