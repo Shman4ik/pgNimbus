@@ -36,13 +36,15 @@ public class MacOSEntitlementsTests
     }
 
     /// <summary>
-    /// A NativeAOT app built with .NET 10 carries <c>minos 12.0</c>. The bundle said 11.0,
-    /// so a macOS 11 Mac got a dyld failure instead of Launch Services' "requires
-    /// macOS 12". The real gate is release.yml, which compares this key with the
-    /// binaries' minos; this keeps a hand edit from lowering it under that floor.
+    /// A NativeAOT app built with .NET 11 carries <c>minos 14.0</c> (.NET 10's was 12.0).
+    /// The bundle once said 11.0 under .NET 10, so a macOS 11 Mac got a dyld failure
+    /// instead of Launch Services' "requires macOS 12", and the move to .NET 11 left it
+    /// at 12.0 until the 1.4.0 release rehearsal's mounted-.dmg check refused it. The
+    /// real gate is release.yml, which compares this key with the binaries' minos; this
+    /// keeps a hand edit from lowering it under that floor.
     /// </summary>
     [Test]
-    public async Task The_bundle_does_not_promise_a_macOS_older_than_12()
+    public async Task The_bundle_does_not_promise_a_macOS_older_than_14()
     {
         var path = Path.Combine(RepositoryRoot(), "packaging", "macos", "Info.plist.template");
         var doc = new XmlDocument { XmlResolver = null };
@@ -55,7 +57,7 @@ public class MacOSEntitlementsTests
             value = value.NextSibling;
         }
 
-        await Assert.That(Version.Parse(value!.InnerText)).IsGreaterThanOrEqualTo(new Version(12, 0));
+        await Assert.That(Version.Parse(value!.InnerText)).IsGreaterThanOrEqualTo(new Version(14, 0));
     }
 
     private static string RepositoryRoot()

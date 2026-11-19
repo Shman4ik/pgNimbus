@@ -48,7 +48,7 @@ zip instead: the MSI gets no further updates.
 
 ## macOS
 
-Apple Silicon only, on macOS 12 Monterey or later. Download `pgNimbus-<version>-macos-arm64.dmg` from the
+Apple Silicon only, on macOS 14 Sonoma or later. Download `pgNimbus-<version>-macos-arm64.dmg` from the
 [releases page](https://github.com/Shman4ik/pgNimbus/releases). Open the disk
 image, drag pgNimbus onto the Applications folder beside it, then eject the
 image. Running the app from the mounted image works, but it disappears the
@@ -57,7 +57,7 @@ moment you eject.
 The build carries an ad-hoc signature instead of an Apple Developer ID one, so
 macOS asks about it the first time you open it:
 
-=== "macOS 14 and earlier"
+=== "macOS 14"
 
     Right-click (or Control-click) pgNimbus in Applications, choose **Open**,
     then **Open** again in the dialog.
