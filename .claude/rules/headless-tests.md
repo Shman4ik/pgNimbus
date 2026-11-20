@@ -195,7 +195,22 @@ Two checks for a translation, both looked at on the pull request (#435):
   measured: cut by trimming or a line limit (nimbusUi's `CutTextTip.IsCut`),
   wider than its box on one line, taller than its box when it wraps, or drawn
   past a clipping ancestor or the window's edge sideways (a row scrolled half
-  out of a list is scrolling, not a cut). The English and the translated build
+  out of a list is scrolling, not a cut; a wrapped line's trailing space, which
+  hangs past the box undrawn, does not count).
+  **It measures with the real fonts** (2026-11, 1.4.1). It ran on the session's
+  headless drawing stub until then, which gives every character an advance of one
+  em whatever the font: "SQL formatieren" at 13 px measured 195 px where the
+  screen draws 93, 412 English blocks read as cut, and #445's review listed 25
+  findings, none of which showed on screen, while it missed the ones that did (a
+  Query Lab figure name in Spanish and Russian, the search pill in German, French
+  and Russian on Linux, the connection dialog's identity button). The test now sets
+  `TestApp.RealText` before the session starts, which builds it with Skia and
+  `UseHeadlessDrawing = false` as the screenshot harness does, and fails if
+  another test started the session first, so it has to run alone (the command
+  below). The other tests keep the stub. Real fonts make the numbers depend on
+  the host: the workflow's are Linux with `fonts-noto-cjk`; a check in the .NET
+  SDK container through `wslc` needs `libfontconfig1`, `fonts-dejavu-core` and
+  `fonts-noto-cjk`. The English and the translated build
   have the same tree, so a block is matched with its English twin by its path
   in the visual tree, and only what fits in English and not in the language is
   reported (what is cut in English is a layout matter, counted but not listed).
@@ -211,7 +226,8 @@ Two checks for a translation, both looked at on the pull request (#435):
 
   `PGNIMBUS_FIT_LANGUAGES=de,ru` narrows the languages, `PGNIMBUS_FIT_SCENARIOS`
   the scenarios (a substring). On 2026-11-17 the pseudo-locale alone gave 30
-  findings over 68 scenarios (4,835 blocks), most of them 2 to 15 px.
+  findings over 68 scenarios (4,835 blocks), most of them 2 to 15 px (stub
+  metrics, see above).
 - **The renders**, `scripts/screenshots/render-languages.sh <out> [filter]`:
   every scenario in English and each translation, light only, as
   `<out>/<lang>/<scenario>.png` (`PGNIMBUS_RENDER_LANGUAGES=en,qps-ploc` picks

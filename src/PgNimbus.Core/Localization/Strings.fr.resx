@@ -1548,7 +1548,7 @@
     <comment>Main window, command bar at the top: tooltip of the swap button that opens the connection dialog. The shortcut is appended by the app.</comment>
   </data>
   <data name="Shell_SearchPill" xml:space="preserve">
-    <value>Rechercher tables, requêtes, actions…</value>
+    <value>Chercher tables, requêtes, actions…</value>
     <comment>Main window, command bar at the top: placeholder text of the centered search button that opens the command palette.</comment>
   </data>
   <data name="Shell_ActivityTip" xml:space="preserve">
