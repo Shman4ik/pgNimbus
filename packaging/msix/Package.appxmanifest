@@ -40,8 +40,16 @@
     <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
   </Dependencies>
 
+  <!-- The languages the Store lists as supported. One per
+       src/PgNimbus.Core/Localization/Strings.<tag>.resx, English first (the
+       Store's default listing); MsixManifestTests keeps the two in step. -->
   <Resources>
     <Resource Language="en-us" />
+    <Resource Language="de" />
+    <Resource Language="es" />
+    <Resource Language="fr" />
+    <Resource Language="ru" />
+    <Resource Language="zh-Hans" />
   </Resources>
 
   <Applications>
