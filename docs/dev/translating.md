@@ -19,7 +19,10 @@ lists the language.
 3. Translate each `<value>`. Leave the `name` attributes and the `<comment>`s
    alone. You can also delete entries you have not translated yet: a missing key
    shows in English, so a file that is half done is still useful.
-4. Open a pull request with the one file.
+4. Add `<Resource Language="<tag>" />` to `packaging/msix/Package.appxmanifest`,
+   so the Microsoft Store lists the language as supported (`MsixManifestTests`
+   fails until you do). A maintainer adds the Store listing in that language.
+5. Open a pull request.
 
 Each entry looks like this:
 
