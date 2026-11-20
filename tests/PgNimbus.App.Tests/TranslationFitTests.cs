@@ -25,7 +25,9 @@ namespace PgNimbus.App.Tests;
 /// <para>
 /// The languages are <c>qps-ploc</c> and every <c>Strings.&lt;tag&gt;.resx</c> in
 /// <c>src/PgNimbus.Core/Localization</c>, read from the file, so a translation that
-/// is not built in yet is checked too. <b>Report-only</b>: findings are written to
+/// is not built in yet is checked too. Text is laid out with the real fonts through
+/// Skia (<see cref="TestApp.RealText"/>), not the headless stub the other tests use,
+/// so the test must be the first of its run. <b>Report-only</b>: findings are written to
 /// the test output and to <see cref="ReportPath"/>, and the test fails only when it
 /// compared nothing. Run it alone:
 /// <code>
@@ -57,6 +59,17 @@ public class TranslationFitTests
             .Where(s => PseudoLocaleTests.Converted.ContainsKey(s.Name))
             .Where(s => string.IsNullOrEmpty(scenarioFilter) || s.Name.Contains(scenarioFilter, StringComparison.OrdinalIgnoreCase))
             .ToList();
+
+        // Measured with the real fonts: the headless stub's one em per character
+        // makes nearly every translation longer than its box. The switch is read
+        // when the session starts, so this test has to be the first of its run.
+        TestApp.RealText = true;
+        await Ui.Run(() => Task.CompletedTask);
+        if (!TestApp.UsesRealText)
+        {
+            Assert.Fail("The UI session started before this test and lays text out with the headless stub. Run this test alone: "
+                + "dotnet run --project tests/PgNimbus.App.Tests -c Release -- --treenode-filter \"/*/*/TranslationFitTests/*\"");
+        }
 
         var findings = new List<Finding>();
         var compared = 0;
@@ -262,7 +275,9 @@ public class TranslationFitTests
         {
             problem = $"taller than its box: needs {block.TextLayout.Height:0} px high, has {height:0} px";
         }
-        else if (Clip(window, block, oneLine ? natural : block.TextLayout.WidthIncludingTrailingWhitespace, width) is { } clipped)
+        // A wrapped line's trailing space hangs past the box and is not drawn, so a
+        // wrapped block is as wide as its widest line without it.
+        else if (Clip(window, block, oneLine ? natural : block.TextLayout.TextLines.Max(line => line.Width), width) is { } clipped)
         {
             problem = clipped;
         }

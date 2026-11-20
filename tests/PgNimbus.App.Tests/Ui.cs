@@ -210,9 +210,27 @@ public static class Ui
 /// </summary>
 public static class TestApp
 {
-    public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
-        .UseHeadless(new AvaloniaHeadlessPlatformOptions())
+    /// <summary>
+    /// Lay text out with the real fonts, through Skia, instead of the headless
+    /// drawing stub. The stub gives every character an advance of one em, whatever
+    /// the font: "SQL formatieren" at 13 px measured 195 px where the screen draws
+    /// 93, and 412 English text blocks read as cut. That is fine for tests that
+    /// read control state, and wrong for one that measures text
+    /// (<see cref="TranslationFitTests"/>). It has to be chosen before the session
+    /// starts, which is the first <see cref="Ui.Run"/> of the process, so it holds
+    /// for every test in that run; <see cref="UsesRealText"/> says what was chosen.
+    /// </summary>
+    public static bool RealText { get; set; }
+
+    /// <summary>Whether the running session lays text out with the real fonts.</summary>
+    public static bool UsesRealText { get; private set; }
+
+    public static AppBuilder BuildAvaloniaApp() => Configure(UsesRealText = RealText)
         .WithInterFont()
         .WithNimbusFonts()
         .WithLanguageFonts();
+
+    private static AppBuilder Configure(bool realText) => realText
+        ? AppBuilder.Configure<App>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
+        : AppBuilder.Configure<App>().UseHeadless(new AvaloniaHeadlessPlatformOptions());
 }
