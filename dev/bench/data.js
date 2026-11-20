@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795114302756,
+  "lastUpdate": 1795193836011,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -2790,6 +2790,165 @@ window.BENCHMARK_DATA = {
           {
             "name": "UI: record a run with a full history",
             "value": 0.07,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9e10ddfd66dcd4b67150ca94460501336610de39",
+          "message": "Measure translated text with real fonts, and fix what that finds (#448)\n\n* Fit test: measure translations with the real fonts\n\nTranslationFitTests ran on the headless drawing stub, which gives every\ncharacter an advance of one em: \"SQL formatieren\" at 13 px measured 195 px\nwhere the screen draws 93, and 412 English text blocks read as cut. The\ntest now starts the session with Skia (TestApp.RealText), as the screenshot\nharness renders, and fails if another test started it first. A wrapped\nline's trailing space, which hangs past the box undrawn, no longer counts.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n\n* Query Lab: wrap a figure's name instead of running under Before\n\n\"Coste estimado (unidades del planificador)\" and \"Оценка стоимости\n(единицы планировщика)\" were wider than the summary's and the node\ndetails' name columns. English renders as before.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n\n* Connection dialog: hide the identity button when it does not fit\n\nIt hid below a fixed 580 px row; on Linux the French and Russian Test and\nConnect buttons left it narrower than its content while still showing it,\nwith the name and version drawn past its edge. FitOrHide shows it at full\nwidth or not at all. English renders as before.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n\n* de, fr, ru: shorter search pill text\n\nThe command bar's search pill is capped at 300 px, and on Linux the three\ntranslations were cut by 9 px: \"Tabelle, Abfrage, Aktion suchen…\",\n\"Chercher tables, requêtes, actions…\", \"Таблицы, запросы, действия…\".\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-20T17:40:58+01:00",
+          "tree_id": "975ca795701ba67ae846e61cd4d4f44dcbdfd593",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/9e10ddfd66dcd4b67150ca94460501336610de39"
+        },
+        "date": 1795193835150,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 154,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 171.2,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 51.8,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, shipped files)",
+            "value": 65.1,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 1250,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 70.5,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.22,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 5.8,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 145.4,
+            "unit": "ms"
+          },
+          {
+            "name": "Run a 200-statement seed script",
+            "value": 18.4,
+            "unit": "ms"
+          },
+          {
+            "name": "Commit 1,000 staged edits",
+            "value": 15.1,
+            "unit": "ms"
+          },
+          {
+            "name": "Stage 100,000 deletes (safe mode)",
+            "value": 23.9,
+            "unit": "ms"
+          },
+          {
+            "name": "Copy 100,000 rows as TSV",
+            "value": 30.8,
+            "unit": "ms"
+          },
+          {
+            "name": "Write the history after a run (200 entries, 5 MB)",
+            "value": 85.3,
+            "unit": "ms"
+          },
+          {
+            "name": "Load the history (200 entries, 5 MB)",
+            "value": 29.7,
+            "unit": "ms"
+          },
+          {
+            "name": "Find the caret's statement in a 5 MB script, per key",
+            "value": 0.003,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: expand a schema of 5,000 tables",
+            "value": 268.8,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: tree rows realized for 5,000 tables",
+            "value": 92,
+            "unit": "rows"
+          },
+          {
+            "name": "UI: filter 5,000 tables to one",
+            "value": 59.6,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: 5,000 script sections land",
+            "value": 55.2,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: script section chips realized",
+            "value": 8,
+            "unit": "chips"
+          },
+          {
+            "name": "UI: palette keystroke over 50,000 relations",
+            "value": 28,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: widest result the grid shows",
+            "value": 1297.8,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: edit context arriving after the rows",
+            "value": 127.7,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: show 1 MB of read-only text",
+            "value": 27.7,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: key typed at the end of a 5 MB script",
+            "value": 31.1,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: record a run with a full history",
+            "value": 0.04,
             "unit": "ms"
           }
         ]
