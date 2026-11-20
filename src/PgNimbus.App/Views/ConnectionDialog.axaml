@@ -467,16 +467,18 @@
              Connect. It replaced a separate "v1.0.0 · Copyright" line under the
              buttons, so the window gained that row back. It opens About, which is
              otherwise out of reach from this window outside macOS, and it steps
-             aside if the window is ever too narrow for it next to the buttons. -->
-        <Button Grid.Column="1" Classes="chip" Opacity="1" HorizontalAlignment="Center" Padding="8,4" Margin="12,0"
-                Command="{Binding ShowAboutCommand}" ToolTip.Tip="{Binding FooterText}"
-                IsVisible="{Binding $parent[Grid].Bounds.Width, Converter={x:Static converters:MinWidthVisibilityConverter.Instance}, ConverterParameter=580}">
-            <StackPanel Orientation="Horizontal" Spacing="7">
-                <Image Source="{StaticResource LogoMarkImage}" Width="22" Height="22" VerticalAlignment="Center" />
-                <TextBlock Text="pgNimbus" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding VersionLabel}" FontSize="11" Opacity="0.6" VerticalAlignment="Center" Margin="1,2,0,0" />
-            </StackPanel>
-        </Button>
+             aside whenever the buttons beside it leave it too little room
+             (FitOrHide: a translation's longer Test and Connect squeezed it). -->
+        <views:FitOrHide Grid.Column="1">
+            <Button Classes="chip" Opacity="1" HorizontalAlignment="Center" Padding="8,4" Margin="12,0"
+                    Command="{Binding ShowAboutCommand}" ToolTip.Tip="{Binding FooterText}">
+                <StackPanel Orientation="Horizontal" Spacing="7">
+                    <Image Source="{StaticResource LogoMarkImage}" Width="22" Height="22" VerticalAlignment="Center" />
+                    <TextBlock Text="pgNimbus" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding VersionLabel}" FontSize="11" Opacity="0.6" VerticalAlignment="Center" Margin="1,2,0,0" />
+                </StackPanel>
+            </Button>
+        </views:FitOrHide>
 
         <!-- Right margin: the form's scrollbar gutter, so Connect's edge lines up
              with the fields' edge above it. -->

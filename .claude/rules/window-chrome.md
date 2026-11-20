@@ -81,7 +81,11 @@ paths:
   is always there and always empty. It replaced the separate "v1.0.0 · Copyright"
   line below the buttons (the full text is its tooltip), so the window got that
   row back, and it opens the About overlay, which from this window was otherwise
-  reachable only through macOS's app menu.
+  reachable only through macOS's app menu. It steps aside when the buttons beside
+  it leave it too little room (`Views/FitOrHide`, 2026-11): it used to hide below
+  a fixed 580px row, and on Linux the French and Russian Test and Connect left it
+  narrower than that while still showing it, with the name and version drawn past
+  its edge.
   **The window stops at the size the form fills, on every platform** (2026-09,
   1.0 release pass): `CanMaximize = false` and `MaxWidth`/`MaxHeight` =
   `ConnectionDialog.MaxFormWidth`/`MaxFormHeight` (1032 x 832, the block below
