@@ -134,12 +134,15 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="vm:PlanMetricRowViewModel">
                                                 <Grid ColumnDefinitions="2*,*,*,1.6*" Margin="0,3">
-                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
-                                                        <TextBlock Text="{Binding Label}" />
+                                                    <!-- Wraps rather than running under the Before column: a
+                                                         translated name ("Coste estimado (unidades del
+                                                         planificador)") can be wider than the column. -->
+                                                    <WrapPanel Grid.Column="0" Orientation="Horizontal" ItemSpacing="8">
+                                                        <TextBlock Text="{Binding Label}" TextWrapping="Wrap" />
                                                         <!-- A caveat that belongs to this figure: "one run each". -->
                                                         <TextBlock Text="{Binding Note}" Classes="secondary" FontSize="11"
                                                                    VerticalAlignment="Center" IsVisible="{Binding HasNote}" />
-                                                    </StackPanel>
+                                                    </WrapPanel>
                                                     <TextBlock Grid.Column="1" Classes="mono" Classes.missing="{Binding BeforeMissing}"
                                                                Text="{Binding BeforeText}" ToolTip.Tip="{Binding BeforeTip}"
                                                                HorizontalAlignment="Right" Margin="8,0" />
@@ -264,7 +267,7 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="vm:NodeFigure">
                                                 <Grid ColumnDefinitions="2*,*,*" Margin="0,1">
-                                                    <TextBlock Grid.Column="0" Text="{Binding Label}" FontSize="12" />
+                                                    <TextBlock Grid.Column="0" Text="{Binding Label}" FontSize="12" TextWrapping="Wrap" />
                                                     <TextBlock Grid.Column="1" Classes="mono" Text="{Binding Before}" FontSize="12"
                                                                HorizontalAlignment="Right" Margin="6,0" />
                                                     <TextBlock Grid.Column="2" Classes="mono" Text="{Binding After}" FontSize="12"
